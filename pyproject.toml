@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "pySigma-backend-hawk"
+version = "0.1.0"
+description = "pySigma HAWK.io Backend"
+authors = ["Tim Shelton <tshelton@hawkdefense.com>"]
+license = "MIT"
+repository = "https://github.com/redsand/pySigma-backend-hawk"
+packages = [
+    { include = "sigma" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+pysigma = "^0.9.5"
+
+[tool.poetry.dev-dependencies]
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.2.2"
+pytest-cov = "^4.0.0"
+coverage = "^7.2.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
