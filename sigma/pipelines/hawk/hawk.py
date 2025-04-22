@@ -11,14 +11,16 @@ def hawk_pipeline() -> ProcessingPipeline:
         name="hawk pipeline",
         allowed_backends=frozenset("hawk"),      
         priority=20, 
-        items=[
+        items=
+        [
             ProcessingItem(
                 identifier=f"hawk_windows_{service}",
                 transformation=AddConditionTransformation({ "source": source}),
                 rule_conditions=[logsource_windows(service)],
             )
             for service, source in windows_logsource_mapping.items()
-        ] + [
+        ] +
+        [
             ProcessingItem(     # Field mappings
                 identifier="hawk_field_mapping",
                 transformation=FieldMappingTransformation({

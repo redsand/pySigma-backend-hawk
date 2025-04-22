@@ -1,173 +1,215 @@
-from sigma.conversion.state import ConversionState
-from sigma.rule import SigmaRule
-from sigma.conversion.base import TextQueryBackend
-from sigma.conditions import ConditionItem, ConditionAND, ConditionOR, ConditionNOT
-from sigma.types import SigmaCompareExpression, SigmaRegularExpression, SigmaRegularExpressionFlag
-from sigma.pipelines.hawk import # TODO: add pipeline imports or delete this line
-import sigma
+
+import uuid
+import json
 import re
-from typing import ClassVar, Dict, Tuple, Pattern, List, Any
+from sigma.backends.base import SigmaBackend
+from sigma.conditions import (
+    ConditionAND, ConditionOR, ConditionNOT
+)
+from .field_mapper import FieldMapper
 
-class hawkBackend(TextQueryBackend):
-    """hawk backend."""
-    # TODO: change the token definitions according to the syntax. Delete these not supported by your backend.
-    # See the pySigma documentation for further infromation:
-    # https://sigmahq-pysigma.readthedocs.io/en/latest/Backends.html
+class HawkBackend(SigmaBackend):
+    def __init__(self, config=None):
+        super().__init__(config)
+        self.field_mapper = FieldMapper()
 
-    # Operator precedence: tuple of Condition{AND,OR,NOT} in order of precedence.
-    # The backend generates grouping if required
-    name : ClassVar[str] = "hawk backend"
-    formats : Dict[str, str] = {
-        "default": "Plain hawk queries",
-        
-        
-        "format1": "'format1' output format",
-        
-        "format2": "'format2' output format",
-        
-        
-    }
-    requires_pipeline : bool = False            # TODO: does the backend requires that a processing pipeline is provided? This information can be used by user interface programs like Sigma CLI to warn users about inappropriate usage of the backend.
+    def convert(self, rule):
+        tree = self._generate_node(rule.detection.condition)
+        children = [tree]
 
-    precedence : ClassVar[Tuple[ConditionItem, ConditionItem, ConditionItem]] = (ConditionNOT, ConditionAND, ConditionOR)
-    group_expression : ClassVar[str] = "({expr})"   # Expression for precedence override grouping as format string with {expr} placeholder
+        if hasattr(rule, 'parsed_agg') and rule.parsed_agg:
+            agg_node = self._generate_aggregation(rule.parsed_agg, getattr(rule.detection, 'timeframe', None))
+            if agg_node:
+                children.append(agg_node)
 
-    # Generated query tokens
-    token_separator : str = " "     # separator inserted between all boolean operators
-    or_token : ClassVar[str] = "OR"
-    and_token : ClassVar[str] = " "
-    not_token : ClassVar[str] = "NOT"
-    eq_token : ClassVar[str] = "="  # Token inserted between field and value (without separator)
+        metadata = {
+            "score_id": "180304",
+            "hawk_id": rule.id or str(uuid.uuid4()),
+            "group_name": ".",
+            "filter_name": rule.title,
+            "rules": [{
+                "id": "and",
+                "key": "And",
+                "children": [{
+                    "id": "and",
+                    "key": "And",
+                    "children": children
+                }]
+            }],
+            "enabled": True,
+            "public": True,
+            "actions_category_name": "Add (+)",
+            "filter_details": self._generate_details(rule),
+            "references": "\\n".join(rule.references or []),
+            "comments": "",
+            "correlation_action": self._calculate_score(rule),
+            "technique": "",
+            "tags": str(rule.tags or []),
+            "date_added": str(rule.date or "2023-01-01"),
+            "last_updated": "2023-05-04 19:47:07",
+            "tactics": "[ ]"
+        }
 
-    # String output
-    ## Fields
-    ### Quoting
-    field_quote : ClassVar[str] = "'"                               # Character used to quote field characters if field_quote_pattern matches (or not, depending on field_quote_pattern_negation). No field name quoting is done if not set.
-    field_quote_pattern : ClassVar[Pattern] = re.compile("^\\w+$")   # Quote field names if this pattern (doesn't) matches, depending on field_quote_pattern_negation. Field name is always quoted if pattern is not set.
-    field_quote_pattern_negation : ClassVar[bool] = True            # Negate field_quote_pattern result. Field name is quoted if pattern doesn't matches if set to True (default).
+        return json.dumps(metadata, indent=2)
 
-    ### Escaping
-    field_escape : ClassVar[str] = "\\"               # Character to escape particular parts defined in field_escape_pattern.
-    field_escape_quote : ClassVar[bool] = True        # Escape quote string defined in field_quote
-    field_escape_pattern : ClassVar[Pattern] = re.compile("\\s")   # All matches of this pattern are prepended with the string contained in field_escape.
+    def _generate_node(self, node, not_node=False):
+        if isinstance(node, ConditionAND):
+            return {
+                "id": "and",
+                "key": "And",
+                "children": [self._generate_node(n, not_node) for n in node.items]
+            }
+        elif isinstance(node, ConditionOR):
+            return {
+                "id": "or",
+                "key": "Or",
+                "children": [self._generate_node(n, not_node) for n in node.items]
+            }
+        elif isinstance(node, ConditionNOT):
+            return self._generate_node(node.item, not_node=True)
+        elif isinstance(node, tuple):
+            return self._leaf_node(node, not_node)
+        else:
+            raise NotImplementedError(f"Unsupported node type: {type(node)}")
 
-    ## Values
-    str_quote       : ClassVar[str] = '"'     # string quoting character (added as escaping character)
-    escape_char     : ClassVar[str] = "\\"    # Escaping character for special characrers inside string
-    wildcard_multi  : ClassVar[str] = "*"     # Character used as multi-character wildcard
-    wildcard_single : ClassVar[str] = "*"     # Character used as single-character wildcard
-    add_escaped     : ClassVar[str] = "\\"    # Characters quoted in addition to wildcards and string quote
-    filter_chars    : ClassVar[str] = ""      # Characters filtered
-    bool_values     : ClassVar[Dict[bool, str]] = {   # Values to which boolean values are mapped.
-        True: "true",
-        False: "false",
-    }
+    def _leaf_node(self, item, not_node):
+        key, value = item
+        norm_key = self.field_mapper.map(key)
 
-    # String matching operators. if none is appropriate eq_token is used.
-    startswith_expression : ClassVar[str] = "startswith"
-    endswith_expression   : ClassVar[str] = "endswith"
-    contains_expression   : ClassVar[str] = "contains"
-    wildcard_match_expression : ClassVar[str] = "match"      # Special expression if wildcards can't be matched with the eq_token operator
+        if key == "Provider_Name":
+            norm_key = "product_name"
+            if isinstance(value, str) and value.startswith("Microsoft-Windows-"):
+                value = value[len("Microsoft-Windows-"):]
 
-    # Regular expressions
-    # Regular expression query as format string with placeholders {field}, {regex}, {flag_x} where x
-    # is one of the flags shortcuts supported by Sigma (currently i, m and s) and refers to the
-    # token stored in the class variable re_flags.
-    re_expression : ClassVar[str] = "{field}=~{regex}"
-    re_escape_char : ClassVar[str] = "\\"               # Character used for escaping in regular expressions
-    re_escape : ClassVar[Tuple[str]] = ()               # List of strings that are escaped
-    re_escape_escape_char : bool = True                 # If True, the escape character is also escaped
-    re_flag_prefix : bool = True                        # If True, the flags are prepended as (?x) group at the beginning of the regular expression, e.g. (?i). If this is not supported by the target, it should be set to False.
-    # Mapping from SigmaRegularExpressionFlag values to static string templates that are used in
-    # flag_x placeholders in re_expression template.
-    # By default, i, m and s are defined. If a flag is not supported by the target query language,
-    # remove it from re_flags or don't define it to ensure proper error handling in case of appearance.
-    re_flags : Dict[SigmaRegularExpressionFlag, str] = {
-        SigmaRegularExpressionFlag.IGNORECASE: "i",
-        SigmaRegularExpressionFlag.MULTILINE : "m",
-        SigmaRegularExpressionFlag.DOTALL    : "s",
-    }
+        if isinstance(value, list):
+            return {
+                "id": "or",
+                "key": "Or",
+                "children": [self._leaf_node((key, v), not_node) for v in value]
+            }
 
-    # cidr expressions
-    cidr_wildcard : ClassVar[str] = "*"    # Character used as single wildcard
-    cidr_expression : ClassVar[str] = "cidrmatch({field}, {value})"    # CIDR expression query as format string with placeholders {field} = {value}
-    cidr_in_list_expression : ClassVar[str] = "{field} in ({value})"    # CIDR expression query as format string with placeholders {field} = in({list})
+        comparison_op = "="
+        return_type = "str"
+        arg_key = "str"
+        is_regex = False
 
-    # Numeric comparison operators
-    compare_op_expression : ClassVar[str] = "{field}{operator}{value}"  # Compare operation query as format string with placeholders {field}, {operator} and {value}
-    # Mapping between CompareOperators elements and strings used as replacement for {operator} in compare_op_expression
-    compare_operators : ClassVar[Dict[SigmaCompareExpression.CompareOperators, str]] = {
-        SigmaCompareExpression.CompareOperators.LT  : "<",
-        SigmaCompareExpression.CompareOperators.LTE : "<=",
-        SigmaCompareExpression.CompareOperators.GT  : ">",
-        SigmaCompareExpression.CompareOperators.GTE : ">=",
-    }
+        if "|" in key:
+            field, modifier = key.split("|", 1)
+            norm_key = self.field_mapper.map(field)
 
-    # Null/None expressions
-    field_null_expression : ClassVar[str] = "{field} is null"          # Expression for field has null value as format string with {field} placeholder for field name
+            if modifier == "startswith":
+                value = "^" + re.escape(value)
+                is_regex = True
+            elif modifier == "endswith":
+                value = re.escape(value) + "$"
+                is_regex = True
+            elif modifier == "contains":
+                value = ".*" + re.escape(value) + ".*"
+                is_regex = True
+            elif modifier == "wildcard":
+                value = re.escape(value).replace("\\*", ".*")
+                is_regex = True
+            elif modifier in ("lt", "le", "gt", "ge", "ne"):
+                op_map = {"lt": "<", "le": "<=", "gt": ">", "ge": ">=", "ne": "!="}
+                comparison_op = op_map[modifier]
+                return_type = "int" if isinstance(value, int) else "float"
+                arg_key = return_type
+            elif modifier in ("eq", "=="):
+                comparison_op = "="
+            else:
+                raise NotImplementedError(f"Unsupported modifier: {modifier}")
+        else:
+            if isinstance(value, str) and ("*" in value or value.startswith("\\\\")):
+                value = value.replace("*", "EEEESTAREEE")
+                value = re.escape(value).replace("EEEESTAREEE", ".*")
+                if value.endswith("\\\\"):
+                    value = value[:-2]
+                if value.startswith(".*") and not value.endswith(".*"):
+                    value = value[2:] + "$"
+                elif value.endswith(".*") and not value.startswith(".*"):
+                    value = "^" + value[:-2]
+                is_regex = True
 
-    # Field existence condition expressions.
-    field_exists_expression : ClassVar[str] = "exists({field})"             # Expression for field existence as format string with {field} placeholder for field name
-    field_not_exists_expression : ClassVar[str] = "notexists({field})"      # Expression for field non-existence as format string with {field} placeholder for field name. If not set, field_exists_expression is negated with boolean NOT.
+        if isinstance(value, bool):
+            return_type = "bool"
+            arg_key = "bool"
+        elif isinstance(value, int):
+            return_type = "int"
+            arg_key = "int"
+        elif isinstance(value, float):
+            return_type = "float"
+            arg_key = "float"
 
-    # Field value in list, e.g. "field in (value list)" or "field containsall (value list)"
-    convert_or_as_in : ClassVar[bool] = True                     # Convert OR as in-expression
-    convert_and_as_in : ClassVar[bool] = True                    # Convert AND as in-expression
-    in_expressions_allow_wildcards : ClassVar[bool] = True       # Values in list can contain wildcards. If set to False (default) only plain values are converted into in-expressions.
-    field_in_list_expression : ClassVar[str] = "{field} {op} ({list})"  # Expression for field in list of values as format string with placeholders {field}, {op} and {list}
-    or_in_operator : ClassVar[str] = "in"               # Operator used to convert OR into in-expressions. Must be set if convert_or_as_in is set
-    and_in_operator : ClassVar[str] = "contains-all"    # Operator used to convert AND into in-expressions. Must be set if convert_and_as_in is set
-    list_separator : ClassVar[str] = ", "               # List element separator
+        return {
+            "key": norm_key,
+            "description": key,
+            "class": "column",
+            "return": return_type,
+            "args": {
+                "comparison": {"value": comparison_op if not_node is False else "!="},
+                arg_key: {
+                    "value": value,
+                    **({"regex": "true"} if is_regex and arg_key == "str" else {})
+                }
+            },
+            "rule_id": str(uuid.uuid4())
+        }
 
-    # Value not bound to a field
-    unbound_value_str_expression : ClassVar[str] = '"{value}"'   # Expression for string value not bound to a field as format string with placeholder {value}
-    unbound_value_num_expression : ClassVar[str] = '{value}'     # Expression for number value not bound to a field as format string with placeholder {value}
-    unbound_value_re_expression : ClassVar[str] = '_=~{value}'   # Expression for regular expression not bound to a field as format string with placeholder {value} and {flag_x} as described for re_expression
+    def _generate_details(self, rule):
+        details = f"Sigma Rule: {rule.id}\\nAuthor: {rule.author or 'Unknown'}\\nLevel: {rule.level}\\n"
+        if rule.falsepositives:
+            details += "False Positives: " + ", ".join(rule.falsepositives) + "\\n"
+        return details
 
-    # Query finalization: appending and concatenating deferred query part
-    deferred_start : ClassVar[str] = "\n| "               # String used as separator between main query and deferred parts
-    deferred_separator : ClassVar[str] = "\n| "           # String used to join multiple deferred query parts
-    deferred_only_query : ClassVar[str] = "*"            # String used as query if final query only contains deferred expression
+    def _calculate_score(self, rule):
+        score = 0.0
+        if rule.status != "experimental":
+            score += 5.0
+        if rule.level:
+            lvl = rule.level.lower()
+            if lvl == "critical":
+                score += 15.0
+            elif lvl == "high":
+                score += 10.0
+            elif lvl == "low":
+                score -= 10.0
+            elif lvl == "informational":
+                score -= 15.0
+        return max(score, 0.0)
 
-    # TODO: implement custom methods for query elements not covered by the default backend base.
-    # Documentation: https://sigmahq-pysigma.readthedocs.io/en/latest/Backends.html
+    def _generate_aggregation(self, agg, timeframe):
+        if agg.aggfunc.lower() != "count":
+            raise NotImplementedError(f"Aggregation function '{agg.aggfunc}' not supported.")
 
-    
-    
-    def finalize_query_format1(self, rule: SigmaRule, query: str, index: int, state: ConversionState) -> Any:
-        # TODO: implement the per-query output for the output format format1 here. Usually, the generated query is
-        # embedded into a template, e.g. a JSON format with additional information from the Sigma rule.
-        # TODO: proper type annotation.
-        return query
+        columns = [self.field_mapper.map(agg.aggfield)]
+        if agg.groupfield:
+            columns.append(self.field_mapper.map(agg.groupfield))
 
-    def finalize_output_format1(self, queries: List[str]) -> Any:
-        # TODO: implement the output finalization for all generated queries for the format format1 here. Usually,
-        # the single generated queries are embedded into a structure, e.g. some JSON or XML that can be imported into
-        # the SIEM.
-        # TODO: proper type annotation. Sigma CLI supports:
-        # - str: output as is.
-        # - bytes: output in file only (e.g. if a zip package is output).
-        # - dict: output serialized as JSON.
-        # - list of str: output each item as is separated by two newlines.
-        # - list of dict: serialize each item as JSON and output all separated by newlines.
-        return "\n".join(queries)
-    
-    def finalize_query_format2(self, rule: SigmaRule, query: str, index: int, state: ConversionState) -> Any:
-        # TODO: implement the per-query output for the output format format2 here. Usually, the generated query is
-        # embedded into a template, e.g. a JSON format with additional information from the Sigma rule.
-        # TODO: proper type annotation.
-        return query
+        return {
+            "key": "atomic_counter",
+            "description": f"{agg.groupfield} count aggregation stream counter",
+            "class": "function",
+            "return": "int",
+            "inputs": {
+                "columns": {"order": 0, "source": "columns", "type": "array", "objectKey": "columns"},
+                "comparison": {"order": 1, "source": "comparison", "type": "comparison", "objectKey": "comparison"},
+                "threshold": {"order": 2, "source": "", "type": "int", "objectKey": "threshold"},
+                "limit": {"order": 3, "source": "time_offset", "type": "int", "objectKey": "limit"}
+            },
+            "args": {
+                "columns": columns,
+                "comparison": {"value": agg.cond_op},
+                "threshold": {"value": int(agg.condition)},
+                "limit": {"value": self._parse_timeframe(timeframe or "60s")}
+            },
+            "rule_id": str(uuid.uuid4())
+        }
 
-    def finalize_output_format2(self, queries: List[str]) -> Any:
-        # TODO: implement the output finalization for all generated queries for the format format2 here. Usually,
-        # the single generated queries are embedded into a structure, e.g. some JSON or XML that can be imported into
-        # the SIEM.
-        # TODO: proper type annotation. Sigma CLI supports:
-        # - str: output as is.
-        # - bytes: output in file only (e.g. if a zip package is output).
-        # - dict: output serialized as JSON.
-        # - list of str: output each item as is separated by two newlines.
-        # - list of dict: serialize each item as JSON and output all separated by newlines.
-        return "\n".join(queries)
-    
-    
+    def _parse_timeframe(self, tf_str):
+        units = {"s": 1, "m": 60, "h": 3600, "d": 86400}
+        if not tf_str:
+            return 60
+        value = int(tf_str[:-1])
+        unit = tf_str[-1]
+        return value * units.get(unit, 1)
+
