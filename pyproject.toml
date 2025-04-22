@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pySigma-backend-hawk"
-version = "0.1.0"
+version = "0.9.0"
 description = "pySigma HAWK.io Backend"
 authors = ["Tim Shelton <tshelton@hawkdefense.com>"]
 license = "MIT"
