@@ -8,7 +8,7 @@ from sigma.conditions import (
 )
 from .field_mapper import FieldMapper
 
-class HawkBackend(SigmaBackend):
+class hawkBackend(SigmaBackend):
     def __init__(self, config=None):
         super().__init__(config)
         self.field_mapper = FieldMapper()
