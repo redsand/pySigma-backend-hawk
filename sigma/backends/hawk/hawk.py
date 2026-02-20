@@ -12,7 +12,14 @@ from sigma.conditions import (
 )
 from sigma.conversion.base import TextQueryBackend
 from sigma.rule import SigmaRule
-from sigma.types import CompareOperators, SigmaBool, SigmaCompareExpression, SigmaNumber, SigmaRegularExpression
+from sigma.types import (
+    CompareOperators,
+    SigmaBool,
+    SigmaCompareExpression,
+    SigmaFieldReference,
+    SigmaNumber,
+    SigmaRegularExpression,
+)
 
 from .field_mapper import FieldMapper
 
@@ -34,6 +41,8 @@ class hawkBackend(TextQueryBackend):
         results = []
         for index, cond in enumerate(rule.detection.parsed_condition):
             tree = self._generate_node(cond.parsed)
+            if tree is None:
+                continue
             score = self._build_record(rule, [tree])
             if callback is not None:
                 score = callback(rule, output_format, index, cond, score)
@@ -103,18 +112,28 @@ class hawkBackend(TextQueryBackend):
 
         return out_tags, techniques
 
-    def _generate_node(self, node: Any, not_node: bool = False) -> dict:
+    def _generate_node(self, node: Any, not_node: bool = False) -> Optional[dict]:
         if isinstance(node, ConditionAND):
             children = [self._generate_node(n, not_node) for n in node.args]
+            children = [c for c in children if c is not None]
+            if not children:
+                return None
             return {"id": "and", "key": "And", "children": self._dedupe_children(children)}
         if isinstance(node, ConditionOR):
             children = [self._generate_node(n, not_node) for n in node.args]
+            children = [c for c in children if c is not None]
+            if not children:
+                return None
             return {"id": "or", "key": "Or", "children": self._dedupe_children(children)}
         if isinstance(node, ConditionNOT):
             if not node.args:
                 raise NotImplementedError("NOT condition without arguments is not supported.")
             return self._generate_node(node.args[0], not_node=True)
         if isinstance(node, ConditionFieldEqualsValueExpression):
+            if isinstance(node.value, SigmaFieldReference):
+                # Hawk rule grammar has no field-to-field compare primitive.
+                # Skip this unsupported leaf instead of emitting invalid string literals.
+                return None
             return self._leaf_node(node.field, node.value, not_node)
         if isinstance(node, ConditionValueExpression):
             # Sigma keyword/value expressions are unbound to a specific field.
