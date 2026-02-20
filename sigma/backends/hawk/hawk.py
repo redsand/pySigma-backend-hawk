@@ -8,6 +8,7 @@ from sigma.conditions import (
     ConditionFieldEqualsValueExpression,
     ConditionNOT,
     ConditionOR,
+    ConditionValueExpression,
 )
 from sigma.conversion.base import TextQueryBackend
 from sigma.rule import SigmaRule
@@ -115,6 +116,10 @@ class hawkBackend(TextQueryBackend):
             return self._generate_node(node.args[0], not_node=True)
         if isinstance(node, ConditionFieldEqualsValueExpression):
             return self._leaf_node(node.field, node.value, not_node)
+        if isinstance(node, ConditionValueExpression):
+            # Sigma keyword/value expressions are unbound to a specific field.
+            # Use payload as fallback searchable column in Hawk.
+            return self._leaf_node("payload", node.value, not_node)
         raise NotImplementedError(f"Unsupported node type: {type(node)}")
 
     def _leaf_node(self, key: str, raw_value: Any, not_node: bool) -> dict:

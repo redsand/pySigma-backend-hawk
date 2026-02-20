@@ -8,6 +8,7 @@ fieldmappings:
   DestinationIp: ip_dst
   DestinationPort: ip_dport
   EventID: vendor_id
+  Priority: priority
   IPAddress: ip_src
   ImageLoaded: image_loaded
   IpAddress: ip_src
@@ -54,6 +55,12 @@ fieldmappings:
   integritylevel: integrity_level
   OperationName: operation_name
   operationname: operation_name
+  verb: http_method
+  target_user_name: target_username
+  object_dn: distinguished_name
+  source_ipaddress: ip_src
+  response_status_code: http_status_code
+  sys_ticket_encryption_type: sys.ticket.encryption.type
   SearchFilter: search_filter
   searchfilter: search_filter
   ContextInfo: context_info
