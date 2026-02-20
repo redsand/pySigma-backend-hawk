@@ -62,6 +62,27 @@ Key recent artifacts:
    - core AST parity: 94%
 4. Remaining core mismatches are mostly rule-shaping differences and taxonomy/equivalence gaps, not just simple field aliases.
 
+## Latest Snapshot (2026-02-20)
+
+From `..\converter_validation\reports\`:
+
+1. Conversion state (`sigma_rules_conversion_state_v3.json`):
+   - `input_files`: 3110
+   - `processed_files`: 3110
+   - `converted_records`: 3021
+   - `failed_files`: 89
+2. Migration state (`migration_state_report_v3_partial_live.json`):
+   - `production_total`: 3046
+   - `new_total`: 2915
+   - `matched_total`: 2192
+   - `coverage_pct_of_production`: 71.9632
+   - `exact_ast_match_count`: 39
+   - `core_ast_match_count`: 697
+3. Unknown columns (`unknown_columns_v3_partial_live.json`):
+   - `unknown_column_total_unique`: 82
+   - `unknown_column_total_occurrences`: 363
+   - `classification_counts`: `definition_needed=81`, `new_column_candidate=1`
+
 ## Required Validation Modes
 
 Always evaluate in 3 views:
@@ -92,4 +113,3 @@ From `..\` (repo root `sigma`):
 python -m pytest pySigma-backend-hawk\tests converter_validation\tests -q
 python converter_validation\compare_boolean_trees.py --old converter_validation\reports\subset_50_production.jsonl --new converter_validation\reports\subset_50_new.jsonl --report-json converter_validation\reports\subset_50_boolean_compare_v2.json --gap-csv converter_validation\reports\subset_50_boolean_gap_v2.csv --max-examples 50
 ```
-
