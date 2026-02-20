@@ -1,5 +1,6 @@
 import re
 import uuid
+import json
 from typing import Any, ClassVar, Dict, Optional
 
 from sigma.conditions import (
@@ -103,9 +104,11 @@ class hawkBackend(TextQueryBackend):
 
     def _generate_node(self, node: Any, not_node: bool = False) -> dict:
         if isinstance(node, ConditionAND):
-            return {"id": "and", "key": "And", "children": [self._generate_node(n, not_node) for n in node.args]}
+            children = [self._generate_node(n, not_node) for n in node.args]
+            return {"id": "and", "key": "And", "children": self._dedupe_children(children)}
         if isinstance(node, ConditionOR):
-            return {"id": "or", "key": "Or", "children": [self._generate_node(n, not_node) for n in node.args]}
+            children = [self._generate_node(n, not_node) for n in node.args]
+            return {"id": "or", "key": "Or", "children": self._dedupe_children(children)}
         if isinstance(node, ConditionNOT):
             if not node.args:
                 raise NotImplementedError("NOT condition without arguments is not supported.")
@@ -151,6 +154,7 @@ class hawkBackend(TextQueryBackend):
 
         norm_key = self.field_mapper.map(key)
         norm_key, value = self._normalize_hash_field(norm_key, value)
+        norm_key, value = self._normalize_integrity_level(norm_key, value)
         if key == "Provider_Name" and isinstance(value, str) and value.startswith("Microsoft-Windows-"):
             norm_key = "product_name"
             value = value[len("Microsoft-Windows-"):]
@@ -213,6 +217,41 @@ class hawkBackend(TextQueryBackend):
                 return mapped_key, m.group(1)
 
         return norm_key, value
+
+    def _normalize_integrity_level(self, norm_key: str, value: Any) -> tuple[str, Any]:
+        if norm_key != "integrity_level" or not isinstance(value, str):
+            return norm_key, value
+        sid_to_level = {
+            "S-1-16-4096": "low",
+            "S-1-16-8192": "medium",
+            "S-1-16-12288": "high",
+            "S-1-16-16384": "system",
+        }
+        normalized = sid_to_level.get(value.upper())
+        if normalized is not None:
+            return norm_key, normalized
+        return norm_key, value.lower()
+
+    def _dedupe_children(self, children: list[dict]) -> list[dict]:
+        out: list[dict] = []
+        seen: set[str] = set()
+        for child in children:
+            sig = self._node_signature(child)
+            if sig in seen:
+                continue
+            seen.add(sig)
+            out.append(child)
+        return out
+
+    def _node_signature(self, node: Any) -> str:
+        def strip_volatile(x: Any) -> Any:
+            if isinstance(x, list):
+                return [strip_volatile(v) for v in x]
+            if isinstance(x, dict):
+                return {k: strip_volatile(v) for k, v in x.items() if k != "rule_id"}
+            return x
+
+        return json.dumps(strip_volatile(node), sort_keys=True, separators=(",", ":"))
 
     def _generate_details(self, rule: SigmaRule, score_reason: str) -> str:
         details = f"Sigma Rule: {rule.id}\nAuthor: {rule.author or 'Unknown'}\nLevel: {rule.level}\n"
