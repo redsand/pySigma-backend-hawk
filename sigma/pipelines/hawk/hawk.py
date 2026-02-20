@@ -180,6 +180,10 @@ def hawk_pipeline() -> ProcessingPipeline:
                     "source_ipaddress": "ip_src",
                     "response_status_code": "http_status_code",
                     "orig_ip_bytes": "net_if_out_bytes",
+                    "gcp_audit_method_name": "event_name",
+                    "data_proto_payload_method_name": "event_name",
+                    "data_proto_payload_log_name": "event_source",
+                    "data_proto_payload_resource_type": "object_type",
                     "resp_ip_bytes": "net_if_in_bytes",
                     "QNAME": "qname",
                     "Channel": "event_channel"

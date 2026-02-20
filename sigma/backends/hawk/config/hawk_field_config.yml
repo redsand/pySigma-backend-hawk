@@ -39,6 +39,10 @@ fieldmappings:
   eventname: event_name
   EventSource: event_source
   eventsource: event_source
+  gcp_audit_method_name: event_name
+  data_proto_payload_method_name: event_name
+  data_proto_payload_log_name: event_source
+  data_proto_payload_resource_type: object_type
   PipeName: pipe_name
   pipename: pipe_name
   ServiceName: service_name
