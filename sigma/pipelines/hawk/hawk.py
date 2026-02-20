@@ -9,13 +9,13 @@ from sigma.processing.pipeline import ProcessingItem, ProcessingPipeline
 def hawk_pipeline() -> ProcessingPipeline:        
     return ProcessingPipeline(
         name="hawk pipeline",
-        allowed_backends=frozenset("hawk"),      
+        allowed_backends=frozenset({"hawk"}),
         priority=20, 
         items=
         [
             ProcessingItem(
                 identifier=f"hawk_windows_{service}",
-                transformation=AddConditionTransformation({ "source": source}),
+                transformation=AddConditionTransformation({"hawk_source": source}),
                 rule_conditions=[logsource_windows(service)],
             )
             for service, source in windows_logsource_mapping.items()
@@ -53,6 +53,7 @@ def hawk_pipeline() -> ProcessingPipeline:
                     "HostProcess": "image",
                     "Application": "image",
                     "ProcessName": "image",
+                    "ImagePath": "image",
                     "TargetImage": "target_image",
                     "ParentImage": "parent_image",
                     "CallerProcessName": "parent_image",
@@ -62,7 +63,10 @@ def hawk_pipeline() -> ProcessingPipeline:
                     "ParentCommandLine": "parent_command",
                     "Imphash": "file_hash_imphash",
                     "IMPHASH": "file_hash_imphash",
+                    "Hashes": "hashes",
                     "sha256": "file_hash_sha256",
+                    "sha512": "file_hash_sha512",
+                    "sha": "file_hash_sha1",
                     "md5": "file_hash_md5",
                     "sha1": "file_hash_sha1",
                     "SubjectUserSid": "correlation_session_id",
@@ -76,6 +80,8 @@ def hawk_pipeline() -> ProcessingPipeline:
                     "ServiceName": "service_name",
                     "Service": "service_name",
                     "ServiceFileName": "filename",
+                    "OriginalFileName": "filename",
+                    "OriginalFilename": "filename",
                     "SourceImage": "parent_image",
                     "ImageLoaded": "image_loaded",
                     "Description": "image_description",
@@ -122,6 +128,12 @@ def hawk_pipeline() -> ProcessingPipeline:
                     "DetectionSource": "value",
                     "Priority": "event_priority",
                     "event_type_id": "vendor_id",
+                    "source": "hawk_source",
+                    "Source": "hawk_source",
+                    "c-uri-extension": "c-uri-extension",
+                    "c_uri_extension": "c-uri-extension",
+                    "properties.message": "properties.message",
+                    "properties_message": "properties.message",
                     "destination.port": "ip_dport",
                     "user": "correlation_username",
                     "User": "correlation_username",
