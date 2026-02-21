@@ -1,4 +1,332 @@
 fieldmappings:
+  # ── Group 1: High-impact unknowns resolved 2026-02-21 ──────────────────────
+  # host_scan_vuln / host_scan_vuln_name: new columns added to hawk platform
+  host_scan_vuln: host_scan_vuln
+  host_scan_vuln_name: host_scan_vuln_name
+
+  # subcategory_guid: new string column created in hawk platform
+  SubcategoryGuid: subcategory_guid
+  subcategory_guid: subcategory_guid
+
+  # risk_event_type → event_type: confirmed via sl_antivirus_icdx_symantec*.hwk
+  # and netskope mapping in json_key_to_column.py
+  RiskEventType: event_type
+  risk_event_type: event_type
+
+  # logtype → vendor_id: ALL 18 occurrences are OpenCanary rules;
+  # hawk_canary.py explicitly maps logtype → vendor_id (numeric event type code)
+  logtype: vendor_id
+
+  # audit_type_action → audit_system_action: audit_user_action is a
+  # success/failure enum only; audit_system_action holds action description text
+  AuditTypeAction: audit_system_action
+  audit_type_action: audit_system_action
+
+  # audit_policy_changes: treated as a direct string column (all CamelCase
+  # variants normalize to this key via field_mapper snake_case conversion)
+  AuditPolicyChanges: audit_policy_changes
+
+  # audit_type_category → vendor_category: all category fields in
+  # json_key_to_column.py follow this pattern (eventType, eventCategory, etc.)
+  AuditTypeCategory: vendor_category
+  audit_type_category: vendor_category
+
+  # client_address → ip_src: client IP is always the source address
+  # (ip_src_xlate used when behind NAT/proxy — handled case-by-case)
+  ClientAddress: ip_src
+  client_address: ip_src
+
+  # ── Group 2: Medium-impact unknowns resolved 2026-02-21 ────────────────────
+  # remote_address → ip_dst: Windows SMBClient ETW — remote server is destination
+  RemoteAddress: ip_dst
+  remote_address: ip_dst
+
+  # cfgpath → object_name: 100% Fortinet FortiGate config tree paths
+  # (firewall.policy, user.local, vpn.ssl.web.portal, etc.) — not mapped in hwk
+  cfgpath: object_name
+
+  # PackageSourceUri → http_uri: Windows Update/package installation source URLs
+  PackageSourceUri: http_uri
+  package_source_uri: http_uri
+
+  # SubStatus → error_code: Windows 4625/4776 NTSTATUS hex sub-status failure code
+  # (0xC0000072=disabled, 0xC000006F=outside hours, 0xC0000070=wrong workstation)
+  SubStatus: error_code
+  sub_status: error_code
+
+  # AppVersion → payload: no application version column exists in hawk
+  AppVersion: payload
+  app_version: payload
+
+  # requestParameters → payload: explicitly None in cloudtrail json_key_to_column.py
+  requestParameters: payload
+  request_parameters: payload
+
+  # userIdentity.type → aws_auth_type: confirmed mapping in json_key_to_column.py
+  # ("userIdentity.type": "aws_auth_type")
+  user_identity_type: aws_auth_type
+
+  # data_proto_payload_authorization_info_permission → payload: GCP-specific
+  data_proto_payload_authorization_info_permission: payload
+
+  # configuration → payload: cloud/DevOps audit config blobs, no column match
+  configuration: payload
+
+  # parameters → payload: unclear source, safe fallback
+  parameters: payload
+
+  # ── Group 3: Low-impact unknowns resolved 2026-02-21 (2-17 occurrences) ────
+  # object_ref_resource (17 - missed from G1/G2): Kubernetes objectRef.resource
+  # (the type of K8s resource being accessed: pods, secrets, deployments, etc.)
+  object_ref_resource: object_type
+  ObjectRefResource: object_type
+
+  # reason: Cisco Duo action reason (bypass_user) / Okta outcome.reason
+  # — action description text, best fit is audit_system_action
+  reason: audit_system_action
+  Reason: audit_system_action
+
+  # additional_info: Windows Kerberos AdditionalInfo (DN blob in Event 4768/4769)
+  additional_info: payload
+  AdditionalInfo: payload
+
+  # isatap_router: Windows ISATAP router IP address (Event 4100 / Iphlpsvc)
+  # — the configured IPv4-to-IPv6 tunnel endpoint IP address
+  isatap_router: ip_dst
+  IsatapRouter: ip_dst
+
+  # object_ref_api_group: Kubernetes objectRef.apiGroup (e.g. authorization.k8s.io)
+  # — K8s API group name, no equivalent HAWK column
+  object_ref_api_group: payload
+  ObjectRefApiGroup: payload
+
+  # user_identity_arn: AWS CloudTrail userIdentity.arn — no ARN column in HAWK
+  user_identity_arn: payload
+
+  # api_group: Kubernetes apiGroup — same as object_ref_api_group
+  api_group: payload
+
+  # response_elements_console_login: AWS CloudTrail responseElements.ConsoleLogin
+  response_elements_console_login: payload
+
+  # modified_properties_new_value: Azure AD ModifiedProperties[*].NewValue
+  # (the new value of the changed attribute after modification)
+  modified_properties_new_value: object_value
+  ModifiedPropertiesNewValue: object_value
+
+  # target_resources_modified_properties_new_value: Azure AD
+  # targetResources[*].modifiedProperties[*].newValue — same semantics
+  target_resources_modified_properties_new_value: object_value
+
+  # device_detail_trusttype: Azure AD deviceDetail.trustType
+  # (AzureAD / Compliant / Hybrid) — no device trust column
+  device_detail_trusttype: payload
+
+  # device_detail_is_compliant: Azure AD deviceDetail.isCompliant bool
+  device_detail_is_compliant: payload
+
+  # debug_context_debug_data_request_uri: Okta debugContext.debugData.requestUri
+  debug_context_debug_data_request_uri: http_uri
+
+  # calling_process: AppX Deployment CallingProcess — the parent installer process
+  calling_process: parent_image
+  CallingProcess: parent_image
+
+  # filter_name: Windows WFP FilterName (Events 5441/5447) — named WFP filter rule
+  filter_name: policy_name
+  FilterName: policy_name
+
+  # source_user: Sysmon SourceUser — user who opened the process handle
+  source_user: correlation_username
+  SourceUser: correlation_username
+
+  # share_local_path: Windows 5140/5145 ShareLocalPath — local FS path of the share
+  share_local_path: file_path
+  ShareLocalPath: file_path
+
+  # initiatied_by (typo for initiated_by): Azure AD initiatedBy user principal
+  # confirmed via json_key_to_column.py line 515: initiatedBy.user.userPrincipalName
+  initiatied_by: correlation_username
+  InitiatiedBy: correlation_username
+
+  # date: event date/timestamp field (Bitbucket/Atlassian audit logs)
+  date: reception_time
+
+  # device_info: generic device information blob
+  device_info: payload
+
+  # operation_properties: Azure operation properties blob
+  operation_properties: payload
+
+  # ── Group 4: Single-occurrence unknowns resolved 2026-02-21 ─────────────────
+  # object_ref_subresource: Kubernetes objectRef.subresource
+  # (sub-operation on resource: exec, log, portforward, etc.)
+  object_ref_subresource: operation_name
+  ObjectRefSubresource: operation_name
+
+  # host_path: Kubernetes hostPath volume mount path (filesystem path on host)
+  host_path: file_path
+
+  # object_ref_namespace: Kubernetes namespace — no HAWK namespace column
+  object_ref_namespace: payload
+
+  # capabilities: Linux/Kubernetes capabilities bitmask
+  capabilities: payload
+
+  # additional_event_data_mfaused: AWS CloudTrail additionalEventData.MFAUsed
+  # (Yes/No string) — no MFA column in C engine columns
+  additional_event_data_mfaused: payload
+
+  # request_parameters_enable: AWS CloudTrail requestParameters.enable bool
+  request_parameters_enable: payload
+
+  # request_parameters_attribute: AWS CloudTrail requestParameters.attribute
+  request_parameters_attribute: object_name
+
+  # request_parameters_container_definitions_command: AWS ECS container command
+  request_parameters_container_definitions_command: command
+
+  # request_parameters_layers: AWS Lambda requestParameters.layers
+  request_parameters_layers: payload
+
+  # response_elements_pending_modified_values_master_user_password:
+  # AWS RDS password change — value is always redacted (XXXXXX)
+  response_elements_pending_modified_values_master_user_password: payload
+
+  # response_elements_publicly_accessible: AWS RDS publiclyAccessible bool
+  response_elements_publicly_accessible: payload
+
+  # user_identity_session_context_session_issuer_type: AWS session issuer type
+  # (AssumedRole, Role, etc.) — related to auth type but distinct from aws_auth_type
+  user_identity_session_context_session_issuer_type: payload
+
+  # target_resources_modified_properties: Azure AD array of modified props
+  target_resources_modified_properties: payload
+
+  # consent_context_is_admin_consent: Azure AD consentContext.isAdminConsent bool
+  consent_context_is_admin_consent: payload
+
+  # target_resources_type: Azure AD targetResources type (User, Group, ServicePrincipal)
+  target_resources_type: object_type
+
+  # additional_details_additional_info: Azure AD additionalDetails.additionalInfo
+  additional_details_additional_info: payload
+
+  # target_resources_modified_properties_display_name:
+  # Azure AD name of the modified property (e.g. StrongAuthenticationRequirement)
+  target_resources_modified_properties_display_name: object_name
+
+  # device_detail_device_id: Azure AD deviceDetail.deviceId GUID
+  device_detail_device_id: payload
+
+  # username: generic username field across multiple sources
+  username: correlation_username
+
+  # data_proto_payload_service_name: GCP protoPayload.serviceName
+  # (e.g. cloudresourcemanager.googleapis.com)
+  data_proto_payload_service_name: service_name
+
+  # data_proto_payload_authorization_info_granted: GCP authorizationInfo.granted bool
+  data_proto_payload_authorization_info_granted: payload
+
+  # setting_name: configuration setting name
+  setting_name: object_name
+
+  # object_id: Azure AD object GUID identifier
+  object_id: payload
+
+  # result_status: Azure AD sign-in result status string
+  result_status: value
+
+  # application_id: Azure AD application GUID
+  application_id: payload
+
+  # security_context_is_proxy: Okta securityContext.isProxy bool
+  security_context_is_proxy: payload
+
+  # outcome_result: Okta outcome.result (SUCCESS/FAILURE string)
+  # mapped to value (generic string result)
+  outcome_result: value
+
+  # outcome_reason: Okta outcome.reason — same as reason above
+  outcome_reason: audit_system_action
+
+  # debugcontext_debugdata_logonlysecuritydata: Okta debug flag
+  debugcontext_debugdata_logonlysecuritydata: payload
+
+  # debugcontext_debugdata_behaviors: Okta behavior fingerprinting data
+  debugcontext_debugdata_behaviors: payload
+
+  # target_displayname: Okta target[*].displayName (user or app display name)
+  target_displayname: object_name
+
+  # securitycontext_isproxy: Okta securityContext.isProxy (alt snake_case form)
+  securitycontext_isproxy: payload
+
+  # euid: Linux effective user ID — no direct UID column
+  euid: payload
+
+  # certificate_serial: certificate serial number — no cert column in HAWK
+  certificate_serial: payload
+
+  # cs_cookie: IIS/W3C cs(Cookie) header value
+  cs_cookie: payload
+
+  # has_full_trust: AppX HasFullTrust bool
+  has_full_trust: payload
+
+  # flags: generic flags field
+  flags: payload
+
+  # ip_port: generic port number — mapped to destination port
+  ip_port: ip_dport
+
+  # provider_context_name: Windows WFP ProviderContextName (Event 5449)
+  provider_context_name: object_name
+  ProviderContextName: object_name
+
+  # pre_auth_type: Windows Kerberos PreAuthType (Event 4768/4769)
+  pre_auth_type: payload
+
+  # layer_rtid: Windows WFP LayerRTID (runtime layer ID)
+  layer_rtid: payload
+
+  # sys_ticket_options: Kerberos ticket options flags
+  # → sys.ticket.options is an authoritative C engine column (dots notation)
+  sys_ticket_options: sys.ticket.options
+
+  # encyption_used (typo for encryption_used): SMBClient encryption type
+  encyption_used: payload
+
+  # signing_used: SMBClient signing type
+  signing_used: payload
+
+  # feature_name: Windows feature name (e.g. Windows Defender feature)
+  feature_name: object_name
+
+  # source_is_ipv6: bool flag whether source IP is IPv6
+  source_is_ipv6: payload
+
+  # event_category: event category field (consistent with audit_type_category)
+  event_category: vendor_category
+
+  # grand_parent_image: grandparent process image — no grandparent column in HAWK
+  grand_parent_image: payload
+
+  # target_user_display_name: Azure/Okta target user display name
+  target_user_display_name: target_username
+
+  # cs_content_type: IIS/W3C cs(Content-Type) header
+  cs_content_type: http_content_type
+
+  # src_country: source country code (2-letter ISO)
+  src_country: ip_src_geoip_cc2
+
+  # computer: Windows Computer field — the source machine hostname
+  computer: hostname_src
+  Computer: hostname_src
+
+  # ── Existing mappings ───────────────────────────────────────────────────────
   CallTrace: calltrace
   Channel: event_channel
   Source: hawk_source
