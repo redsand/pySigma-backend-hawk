@@ -1,0 +1,909 @@
+logsources:
+  antivirus:
+    match:
+      category: antivirus
+    conditions:
+      vendor_type: Antivirus
+  apache:
+    match:
+      service: apache
+    conditions:
+      product_name:
+      - apache*
+      - httpd*
+  webserver:
+    match:
+      category: webserver
+    conditions:
+      vendor_type: Webserver
+  cisco:
+    match:
+      product: cisco
+    conditions:
+      vendor_name: Cisco
+  django:
+    match:
+      product: django
+    conditions:
+      vendor_name: Django
+  okta:
+    match:
+      service: okta
+    conditions:
+      vendor_name: Okta
+      product_name: Identity and Access Management
+  onedrive:
+    match:
+      service: onedrive
+    conditions:
+      vendor_name: Microsoft
+      product_name: Onedrive
+  onelogin-events:
+    match:
+      service: onelogin.events
+    conditions:
+      vendor_name: Microsoft
+      product_name: Onelogin
+  microsoft365:
+    match:
+      product: m365
+      service: threat_management
+    conditions:
+      vendor_name: Microsoft
+      product_name: '365'
+  m365:
+    match:
+      product: m365
+      service: threat_management
+    conditions:
+      vendor_name: Microsoft
+      product_name: '365'
+  google-workspace:
+    match:
+      service: google_workspace.admin
+    conditions:
+      vendor_name: Google
+      product_name: Workspace
+  guacamole:
+    match:
+      service: guacamole
+    conditions:
+      vendor_name: Guacamole
+  google-cloud:
+    match:
+      service: gcp.audit
+    conditions:
+      vendor_name: Google
+      product_name: Cloud
+  sshd:
+    match:
+      service: sshd
+    conditions:
+      process_name: sshd*
+  syslog:
+    match:
+      service: syslog
+    conditions:
+      process_name: syslog*
+  spring:
+    match:
+      product: spring
+      category: application
+    conditions:
+      vendor_name: Spring
+  linux-audit:
+    match:
+      product: linux
+      service: auditd
+    conditions:
+      vendor_name: Linux
+      product_name: Audit
+  modsecurity:
+    match:
+      service: modsecurity
+    conditions:
+      process_name: modsec*
+  msexchange-management:
+    match:
+      service: msexchange-management
+    conditions:
+      product_name: MSExchange Management
+  windows:
+    match:
+      product: windows
+    conditions:
+      vendor_name: Microsoft
+  windows-stream-hash:
+    match:
+      product: windows
+      category: create_stream_hash
+    conditions:
+      product_name: Sysmon
+      vendor_id: '15'
+  windows-create-remote-thread:
+    match:
+      product: windows
+      category: create_remote_thread
+    conditions:
+      product_name: Sysmon
+      vendor_id: '8'
+  windows-process-access:
+    match:
+      product: windows
+      category: process_access
+    conditions:
+      product_name: Sysmon
+      vendor_id: '10'
+  windows-process-creation:
+    match:
+      product: windows
+      category: process_creation
+    conditions:
+      product_name: Sysmon
+      vendor_id: '1'
+  windows-bits-client:
+    match:
+      product: windows
+      service: bits-client
+    conditions:
+      event_channel: Microsoft-Windows-Bits-Client/Operational
+  windows-vhdmp-operational:
+    match:
+      product: windows
+      service: vhdmp
+    conditions:
+      event_channel: Microsoft-Windows-VHDMP/Operational
+  windows-appxdeployment-server:
+    match:
+      product: windows
+      service: appxdeployment-server
+    conditions:
+      event_channel: Microsoft-Windows-AppXDeploymentServer/Operational
+  windows-lsa-server:
+    match:
+      product: windows
+      service: lsa-server
+    conditions:
+      event_channel: Microsoft-Windows-LSA/Operational
+  windows-appxpackaging-om:
+    match:
+      product: windows
+      service: appxpackaging-om
+    conditions:
+      event_channel: Microsoft-Windows-AppxPackaging/Operational
+  windows-dns-client:
+    match:
+      product: windows
+      service: dns-client
+    conditions:
+      event_channel: Microsoft-Windows-DNS Client Events/Operational
+  windows-appmodel-runtime:
+    match:
+      product: windows
+      service: appmodel-runtime
+    conditions:
+      event_channel: Microsoft-Windows-AppModel-Runtime/Admin
+  windows-network-connection:
+    match:
+      product: windows
+      category: network_connection
+    conditions:
+      product_name: Sysmon
+      vendor_id: '3'
+  windows-sysmon-status:
+    match:
+      product: windows
+      category: sysmon_status
+    conditions:
+      product_name: Sysmon
+      vendor_id:
+      - 4
+      - 5
+  windows-sysmon-error:
+    match:
+      product: windows
+      category: sysmon_error
+    conditions:
+      product_name: Sysmon
+      vendor_id: '255'
+  windows-raw-access-thread:
+    match:
+      product: windows
+      category: raw_access_thread
+    conditions:
+      product_name: Sysmon
+      vendor_id: 9
+  windows-file-create:
+    match:
+      product: windows
+      category: file_create
+    conditions:
+      product_name: Sysmon
+      vendor_id: '11'
+  windows-file-event:
+    match:
+      product: windows
+      category: file_event
+    conditions:
+      product_name: Sysmon
+      vendor_id: '11'
+  windows-file-change:
+    match:
+      product: windows
+      category: file_change
+    conditions:
+      product_name: Sysmon
+      vendor_id: '2'
+  windows-pipe-created:
+    match:
+      product: windows
+      category: pipe_created
+    conditions:
+      product_name: Sysmon
+      vendor_id:
+      - 17
+      - 18
+  windows-dns-query:
+    match:
+      product: windows
+      category: dns_query
+    conditions:
+      product_name: Sysmon
+      vendor_id: '22'
+  windows-file-delete:
+    match:
+      product: windows
+      category: file_delete
+    conditions:
+      product_name: Sysmon
+      vendor_id: '23'
+  windows-kernel-file-rename:
+    match:
+      product: windows
+      category: file_rename
+    conditions:
+      product_name: Kernel-File
+  windows-kernel-file-access:
+    match:
+      product: windows
+      category: file_access
+    conditions:
+      product_name: Kernel-File
+  windows-wmi-sysmon:
+    match:
+      product: windows
+      category: wmi_event
+    conditions:
+      product_name: Sysmon
+      vendor_id:
+      - 19
+      - 20
+      - 21
+  windows-ldap-debug:
+    match:
+      product: windows
+      category: ldap_debug
+    conditions:
+      event_channel: Microsoft-Windows-LDAP-Client/Debug
+  windows-driver-load:
+    match:
+      product: windows
+      category: driver_load
+    conditions:
+      product_name: Sysmon
+      vendor_id: '6'
+  windows-image-load:
+    match:
+      product: windows
+      category: image_load
+    conditions:
+      product_name: Sysmon
+      vendor_id: '7'
+  clamav:
+    match:
+      service: clamav
+    conditions:
+      process_name: clamav*
+  aws-cloudtrail:
+    match:
+      service: cloudtrail
+    conditions:
+      vendor_name: AWS CloudTrail
+  zeek:
+    match:
+      product: zeek
+    conditions:
+      vendor_name: Zeek
+      vendor_type: IDS
+  firewall:
+    match:
+      category: firewall
+    conditions:
+      vendor_type:
+      - Firewall
+      - Router
+      - WAP
+  zeek-conn:
+    match:
+      product: zeek
+      service: conn
+    conditions:
+      hawk_source: conn.log
+  zeek-conn_long:
+    match:
+      product: zeek
+      service: conn_long
+    conditions:
+      hawk_source: conn_long.log
+  zeek-dce_rpc:
+    match:
+      product: zeek
+      service: dce_rpc
+    conditions:
+      hawk_source: dce_rpc.log
+  zeek-dns:
+    match:
+      product: zeek
+      service: dns
+    conditions:
+      hawk_source: dns.log
+  zeek-dnp3:
+    match:
+      product: zeek
+      service: dnp3
+    conditions:
+      hawk_source: dnp3.log
+  zeek-dpd:
+    match:
+      product: zeek
+      service: dpd
+    conditions:
+      hawk_source: dpd.log
+  zeek-files:
+    match:
+      product: zeek
+      service: files
+    conditions:
+      hawk_source: files.log
+  zeek-ftp:
+    match:
+      product: zeek
+      service: ftp
+    conditions:
+      hawk_source: ftp.log
+  zeek-gquic:
+    match:
+      product: zeek
+      service: gquic
+    conditions:
+      hawk_source: gquic.log
+  zeek-http:
+    match:
+      product: zeek
+      service: http
+    conditions:
+      hawk_source: http.log
+  zeek-http2:
+    match:
+      product: zeek
+      service: http2
+    conditions:
+      hawk_source: http2.log
+  zeek-intel:
+    match:
+      product: zeek
+      service: intel
+    conditions:
+      hawk_source: intel.log
+  zeek-irc:
+    match:
+      product: zeek
+      service: irc
+    conditions:
+      hawk_source: irc.log
+  zeek-kerberos:
+    match:
+      product: zeek
+      service: kerberos
+    conditions:
+      hawk_source: kerberos.log
+  zeek-known_certs:
+    match:
+      product: zeek
+      service: known_certs
+    conditions:
+      hawk_source: known_certs.log
+  zeek-known_hosts:
+    match:
+      product: zeek
+      service: known_hosts
+    conditions:
+      hawk_source: known_hosts.log
+  zeek-known_modbus:
+    match:
+      product: zeek
+      service: known_modbus
+    conditions:
+      hawk_source: known_modbus.log
+  zeek-known_services:
+    match:
+      product: zeek
+      service: known_services
+    conditions:
+      hawk_source: known_services.log
+  zeek-modbus:
+    match:
+      product: zeek
+      service: modbus
+    conditions:
+      hawk_source: modbus.log
+  zeek-modbus_register_change:
+    match:
+      product: zeek
+      service: modbus_register_change
+    conditions:
+      hawk_source: modbus_register_change.log
+  zeek-mqtt_connect:
+    match:
+      product: zeek
+      service: mqtt_connect
+    conditions:
+      hawk_source: mqtt_connect.log
+  zeek-mqtt_publish:
+    match:
+      product: zeek
+      service: mqtt_publish
+    conditions:
+      hawk_source: mqtt_publish.log
+  zeek-mqtt_subscribe:
+    match:
+      product: zeek
+      service: mqtt_subscribe
+    conditions:
+      hawk_source: mqtt_subscribe.log
+  zeek-mysql:
+    match:
+      product: zeek
+      service: mysql
+    conditions:
+      hawk_source: mysql.log
+  zeek-notice:
+    match:
+      product: zeek
+      service: notice
+    conditions:
+      hawk_source: notice.log
+  zeek-ntlm:
+    match:
+      product: zeek
+      service: ntlm
+    conditions:
+      hawk_source: ntlm.log
+  zeek-ntp:
+    match:
+      product: zeek
+      service: ntp
+    conditions:
+      hawk_source: ntp.log
+  zeek-ocsp:
+    match:
+      product: zeek
+      service: ntp
+    conditions:
+      hawk_source: ocsp.log
+  zeek-pe:
+    match:
+      product: zeek
+      service: pe
+    conditions:
+      hawk_source: pe.log
+  zeek-pop3:
+    match:
+      product: zeek
+      service: pop3
+    conditions:
+      hawk_source: pop3.log
+  zeek-radius:
+    match:
+      product: zeek
+      service: radius
+    conditions:
+      hawk_source: radius.log
+  zeek-rdp:
+    match:
+      product: zeek
+      service: rdp
+    conditions:
+      hawk_source: rdp.log
+  zeek-rfb:
+    match:
+      product: zeek
+      service: rfb
+    conditions:
+      hawk_source: rfb.log
+  zeek-sip:
+    match:
+      product: zeek
+      service: sip
+    conditions:
+      hawk_source: sip.log
+  zeek-smb_files:
+    match:
+      product: zeek
+      service: smb_files
+    conditions:
+      hawk_source: smb_files.log
+  zeek-smb_mapping:
+    match:
+      product: zeek
+      service: smb_mapping
+    conditions:
+      hawk_source: smb_mapping.log
+  zeek-smtp:
+    match:
+      product: zeek
+      service: smtp
+    conditions:
+      hawk_source: smtp.log
+  zeek-smtp_links:
+    match:
+      product: zeek
+      service: smtp_links
+    conditions:
+      hawk_source: smtp_links.log
+  zeek-snmp:
+    match:
+      product: zeek
+      service: snmp
+    conditions:
+      hawk_source: snmp.log
+  zeek-socks:
+    match:
+      product: zeek
+      service: socks
+    conditions:
+      hawk_source: socks.log
+  zeek-software:
+    match:
+      product: zeek
+      service: software
+    conditions:
+      hawk_source: software.log
+  zeek-ssh:
+    match:
+      product: zeek
+      service: ssh
+    conditions:
+      hawk_source: ssh.log
+  zeek-ssl:
+    match:
+      product: zeek
+      service: ssl
+    conditions:
+      hawk_source: tls.log
+  zeek-tls:
+    match:
+      product: zeek
+      service: tls
+    conditions:
+      hawk_source: tls.log
+  zeek-syslog:
+    match:
+      product: zeek
+      service: syslog
+    conditions:
+      hawk_source: syslog.log
+  zeek-tunnel:
+    match:
+      product: zeek
+      service: tunnel
+    conditions:
+      hawk_source: tunnel.log
+  zeek-traceroute:
+    match:
+      product: zeek
+      service: traceroute
+    conditions:
+      hawk_source: traceroute.log
+  zeek-weird:
+    match:
+      product: zeek
+      service: weird
+    conditions:
+      hawk_source: weird.log
+  zeek-x509:
+    match:
+      product: zeek
+      service: x509
+    conditions:
+      hawk_source: x509.log
+  zeek-ip_search:
+    match:
+      product: zeek
+      service: network
+    conditions:
+      hawk_source:
+      - conn.log
+      - conn_long.log
+      - dce_rpc.log
+      - dhcp.log
+      - dnp3.log
+      - dns.log
+      - ftp.log
+      - gquic.log
+      - http.log
+      - irc.log
+      - kerberos.log
+      - modbus.log
+      - mqtt_connect.log
+      - mqtt_publish.log
+      - mqtt_subscribe.log
+      - mysql.log
+      - ntlm.log
+      - ntp.log
+      - radius.log
+      - rfb.log
+      - sip.log
+      - smb_files.log
+      - smb_mapping.log
+      - smtp.log
+      - smtp_links.log
+      - snmp.log
+      - socks.log
+      - ssh.log
+      - tls.log
+      - tunnel.log
+      - weird.log
+  azure-signin:
+    match:
+      product: azure
+      service: signinlogs
+    conditions:
+      vendor_name: Microsoft
+      product_name: Azure
+      product_source: signInAudits
+  azure-auditlogs:
+    match:
+      product: azure
+      service: auditlogs
+    conditions:
+      vendor_name: Microsoft
+      product_name: Azure
+      product_source: directoryAudits
+  azure-activitylogs:
+    match:
+      product: azure
+      service: activitylogs
+    conditions:
+      vendor_name: Microsoft
+      product_name: Azure
+  azure-activity:
+    match:
+      product: azure
+      service: azureactivity
+    conditions:
+      vendor_name: Microsoft
+      product_name: Azure
+  microsoft-servicebus-client:
+    match:
+      product: windows
+      service: microsoft-servicebus-client
+    conditions:
+      event_channel: Microsoft-ServiceBus-Client
+  windows-application:
+    match:
+      product: windows
+      service: application
+    conditions:
+      event_channel: Application
+  windows-security:
+    match:
+      product: windows
+      service: security
+    conditions:
+      event_channel: Security
+  windows-system:
+    match:
+      product: windows
+      service: system
+    conditions:
+      event_channel: System
+  windows-sysmon:
+    match:
+      product: windows
+      service: sysmon
+    conditions:
+      product_name: Sysmon
+  windows-powershell:
+    match:
+      product: windows
+      service: powershell
+    conditions:
+      product_name: PowerShell
+  windows-classicpowershell:
+    match:
+      product: windows
+      service: powershell-classic
+    conditions:
+      product_name: Windows PowerShell
+  windows-taskscheduler:
+    match:
+      product: windows
+      service: taskscheduler
+    conditions:
+      product_name: TaskScheduler
+  windows-wmi:
+    match:
+      product: windows
+      service: wmi
+    conditions:
+      product_name: WMI-Activity
+  windows-dns-server:
+    match:
+      product: windows
+      service: dns-server
+    conditions:
+      product_name: DNS Server
+  windows-dns-server-audit:
+    match:
+      product: windows
+      service: dns-server-audit
+    conditions:
+      product_name: DNS Server
+  windows-driver-framework:
+    match:
+      product: windows
+      service: driver-framework
+    conditions:
+      product_name: DriverFrameworks-UserMode
+  windows-ntlm:
+    match:
+      product: windows
+      service: ntlm
+    conditions:
+      product_name: NTLM
+  windows-dhcp:
+    match:
+      product: windows
+      service: dhcp
+    conditions:
+      product_name: DHCP-Server
+  windows-defender:
+    match:
+      product: windows
+      service: windefend
+    conditions:
+      product_name: Windows Defender
+  windows-applocker:
+    match:
+      product: windows
+      service: applocker
+    conditions:
+      product_name: AppLocker
+  windows-firewall-advanced-security:
+    match:
+      product: windows
+      service: firewall-as
+    conditions:
+      product_name: Windows Firewall With Advanced Security
+  windows-ps-module:
+    match:
+      product: windows
+      category: ps_module
+    conditions:
+      product_name: PowerShell
+      vendor_id: 4103
+  windows-ps-script:
+    match:
+      product: windows
+      category: ps_script
+    conditions:
+      product_name: PowerShell
+      vendor_id: 4104
+  windows-ps-classic-start:
+    match:
+      product: windows
+      category: ps_classic_start
+    conditions:
+      EventID: 400
+      product_name: Windows PowerShell
+  windows-ps-classic-provider:
+    match:
+      product: windows
+      category: ps_classic_provider_start
+    conditions:
+      vendor_id: 600
+      product_name: Windows PowerShell
+  windows-ps-classic-script:
+    match:
+      product: windows
+      category: ps_classic_script
+    conditions:
+      vendor_id: 800
+      product_name: Windows PowerShell
+  windows-service-bus:
+    match:
+      service: Microsoft-ServiceBus-Client
+    conditions:
+      product_name: Microsoft-ServiceBus-Client
+  windows-msexchange-management:
+    match:
+      product: windows
+      service: msexchange-management
+    conditions:
+      product_name: MSExchange Management
+  windows-printservice-admin:
+    match:
+      product: windows
+      service: printservice-admin
+    conditions:
+      product_name: PrintService
+  windows-printservice-operational:
+    match:
+      product: windows
+      service: printservice-operational
+    conditions:
+      product_name: PrintService
+  windows-terminalservices-localsessionmanager-operational:
+    match:
+      product: windows
+      service: terminalservices-localsessionmanager
+    conditions:
+      product_name: TerminalServices-LocalSessionManager
+  windows-codeintegrity-operational:
+    match:
+      product: windows
+      service: codeintegrity-operational
+    conditions:
+      product_name: CodeIntegrity
+  windows-smbclient-security:
+    match:
+      product: windows
+      service: smbclient-security
+    conditions:
+      product_name: SmbClient
+  windows-registry:
+    match:
+      product: windows
+      category: registry_event
+    conditions:
+      product_name: Sysmon
+      vendor_id:
+      - 12
+      - 13
+      - 14
+  windows-registry-add:
+    match:
+      product: windows
+      category: registry_add
+    conditions:
+      product_name: Sysmon
+      vendor_id: 12
+  windows-registry-delete:
+    match:
+      product: windows
+      category: registry_delete
+    conditions:
+      product_name: Sysmon
+      vendor_id: 12
+  windows-registry-set:
+    match:
+      product: windows
+      category: registry_set
+    conditions:
+      product_name: Sysmon
+      vendor_id: 13
+  windows-registry-rename:
+    match:
+      product: windows
+      category: registry_rename
+    conditions:
+      product_name: Sysmon
+      vendor_id: 14
+  windows-file-block-executable:
+    match:
+      product: windows
+      category: file_block
+    conditions:
+      product_name: Sysmon
+      vendor_id: 27

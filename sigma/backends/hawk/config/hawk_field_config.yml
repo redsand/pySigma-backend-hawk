@@ -4,9 +4,9 @@ fieldmappings:
   host_scan_vuln: host_scan_vuln
   host_scan_vuln_name: host_scan_vuln_name
 
-  # subcategory_guid: new string column created in hawk platform
-  SubcategoryGuid: subcategory_guid
-  subcategory_guid: subcategory_guid
+  # subcategory_guid: not yet an authoritative HAWK column; bridge to payload
+  SubcategoryGuid: payload
+  subcategory_guid: payload
 
   # risk_event_type → event_type: confirmed via sl_antivirus_icdx_symantec*.hwk
   # and netskope mapping in json_key_to_column.py
@@ -17,10 +17,10 @@ fieldmappings:
   # hawk_canary.py explicitly maps logtype → vendor_id (numeric event type code)
   logtype: vendor_id
 
-  # audit_type_action → audit_system_action: audit_user_action is a
-  # success/failure enum only; audit_system_action holds action description text
-  AuditTypeAction: audit_system_action
-  audit_type_action: audit_system_action
+  # audit_type_action → value: audit_system_action is not an authoritative HAWK
+  # column; value is the correct generic string column for action text
+  AuditTypeAction: value
+  audit_type_action: value
 
   # audit_policy_changes: treated as a direct string column (all CamelCase
   # variants normalize to this key via field_mapper snake_case conversion)
@@ -82,9 +82,9 @@ fieldmappings:
   ObjectRefResource: object_type
 
   # reason: Cisco Duo action reason (bypass_user) / Okta outcome.reason
-  # — action description text, best fit is audit_system_action
-  reason: audit_system_action
-  Reason: audit_system_action
+  # — action description text; audit_system_action not in contract, use value
+  reason: value
+  Reason: value
 
   # additional_info: Windows Kerberos AdditionalInfo (DN blob in Event 4768/4769)
   additional_info: payload
@@ -133,16 +133,18 @@ fieldmappings:
   CallingProcess: parent_image
 
   # filter_name: Windows WFP FilterName (Events 5441/5447) — named WFP filter rule
-  filter_name: policy_name
-  FilterName: policy_name
+  # policy_name not in contract; object_name is the correct generic name column
+  filter_name: object_name
+  FilterName: object_name
 
   # source_user: Sysmon SourceUser — user who opened the process handle
   source_user: correlation_username
   SourceUser: correlation_username
 
   # share_local_path: Windows 5140/5145 ShareLocalPath — local FS path of the share
-  share_local_path: file_path
-  ShareLocalPath: file_path
+  # file_path not in contract; filename is the correct path/name column
+  share_local_path: filename
+  ShareLocalPath: filename
 
   # initiatied_by (typo for initiated_by): Azure AD initiatedBy user principal
   # confirmed via json_key_to_column.py line 515: initiatedBy.user.userPrincipalName
@@ -165,7 +167,8 @@ fieldmappings:
   ObjectRefSubresource: operation_name
 
   # host_path: Kubernetes hostPath volume mount path (filesystem path on host)
-  host_path: file_path
+  # file_path not in contract; filename is the correct path/name column
+  host_path: filename
 
   # object_ref_namespace: Kubernetes namespace — no HAWK namespace column
   object_ref_namespace: payload
@@ -249,7 +252,8 @@ fieldmappings:
   outcome_result: value
 
   # outcome_reason: Okta outcome.reason — same as reason above
-  outcome_reason: audit_system_action
+  # audit_system_action not in contract; use value
+  outcome_reason: value
 
   # debugcontext_debugdata_logonlysecuritydata: Okta debug flag
   debugcontext_debugdata_logonlysecuritydata: payload
@@ -404,7 +408,6 @@ fieldmappings:
   sha: file_hash_sha1
   SHA256: file_hash_sha256
   SHA512: file_hash_sha512
-  sha512: file_hash_sha512
   OriginalFileName: filename
   originalfilename: filename
   Hashes: hashes
@@ -436,3 +439,31 @@ fieldmappings:
     - ip_src_host
   src_ip:
     - ip_src
+    
+  application: vendor_name
+  c_uri: http_host
+  objectname: object_name
+  relativetargetname: filename
+# Auto-mapped columns from hawk-ece rules
+  product: product_name
+  initiated: ip_src
+  sharename: path
+  eventlog: event_source 
+  dst_port: ip_dport
+  workstationname: ip_src_host
+  useragent: http_user_agent
+  http_uri: http_uri
+  clientapp: app
+  appid: app_class
+  sourceport: ip_sport
+  computername: hostname_src
+  privilegelist: process_privileges_prev
+  sourceip: ip_src
+  appname: app
+  workstation: ip_src_host
+  reception_time: reception_time
+  impersonationlevel : impersonation_level
+  devicename: ip_dst
+  processid: pid
+  sourcehostname: ip_src_host
+  destinationisipv6: ip_dst
