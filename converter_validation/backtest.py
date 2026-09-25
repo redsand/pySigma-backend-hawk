@@ -94,7 +94,7 @@ def main() -> int:
             conv[str(r["hawk_id"]).lower()] = r
     ids: list[str] = []
     if args.select:
-        ids += [l.strip().lower() for l in Path(args.select).read_text(encoding="utf-8").splitlines() if l.strip() and not l.startswith("#")]
+        ids += [l.split("#", 1)[0].strip().lower() for l in Path(args.select).read_text(encoding="utf-8").splitlines() if l.split("#", 1)[0].strip()]
     if args.ids:
         ids += [x.strip().lower() for x in args.ids.split(",") if x.strip()]
     ids = [i for i in dict.fromkeys(ids) if i in conv]
