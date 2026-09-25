@@ -104,7 +104,8 @@ def regex_fragments(rx: str):
         buf.append(ch)
         i += 1
     out.append("".join(buf))
-    frags = [f.strip() for f in out if len(f.strip()) >= 2]
+    # keep fragments of 2+ chars, and single non-ASCII chars (obfuscation rules key on them)
+    frags = [f.strip() for f in out if len(f.strip()) >= 2 or (f.strip() and ord(f.strip()) > 127)]
     return frags
 
 
@@ -131,7 +132,10 @@ def leaf_clause(leaf: dict):
         val = a.get("value")
         rx = str(a.get("regex", "")).lower() in ("true", "1")
         if rx:
-            frags = regex_fragments(str(val))
+            frags = regex_fragments(str(val)) or []
+            if via_payload:
+                # a payload phrase must carry real signal; ".exe" or "/c" matches every event
+                frags = [f for f in frags if len(f) >= 4 and f.lower() not in (".exe", ".dll", "http", "https")]
             if not frags:
                 return None
             clause = " AND ".join(q_phrase(field, f) for f in frags)
