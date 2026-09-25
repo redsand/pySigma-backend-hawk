@@ -2,6 +2,7 @@ from sigma.pipelines.common import logsource_windows, windows_logsource_mapping
 from sigma.processing.transformations import AddConditionTransformation, FieldFunctionTransformation, FieldMappingTransformation, DetectionItemFailureTransformation, RuleFailureTransformation, SetStateTransformation
 from sigma.processing.conditions import LogsourceCondition, IncludeFieldCondition, ExcludeFieldCondition, RuleProcessingItemAppliedCondition, FieldNameProcessingItemAppliedCondition
 from .windows_unified import windows_unified_field
+from .connectors import connector_field, CONNECTOR_PRODUCTS
 from sigma.processing.pipeline import ProcessingItem, ProcessingPipeline
 
 # TODO: the following code is just an example extend/adapt as required.
@@ -35,9 +36,22 @@ def hawk_pipeline() -> ProcessingPipeline:
             ),
         ] +
         [
-            ProcessingItem(     # Field mappings (everything the Windows item did not already name)
+            # Cloud connectors: the Python collectors pass the flattened vendor record through
+            # verbatim and add canonical columns per hawk-ece-rules/py3/json_key_to_column.py.
+            # A Sigma field therefore maps to that table's column when present, else to itself.
+            ProcessingItem(
+                identifier=f"hawk_connector_fields_{product}",
+                transformation=FieldFunctionTransformation({}, connector_field(product)),
+                rule_conditions=[LogsourceCondition(product=product)],
+            )
+            for product in CONNECTOR_PRODUCTS
+        ] +
+        [
+            ProcessingItem(     # Field mappings (everything the Windows/connector items did not already name)
                 identifier="hawk_field_mapping",
-                field_name_conditions=[FieldNameProcessingItemAppliedCondition("hawk_windows_unified_fields")],
+                field_name_conditions=[FieldNameProcessingItemAppliedCondition("hawk_windows_unified_fields")]
+                + [FieldNameProcessingItemAppliedCondition(f"hawk_connector_fields_{product}") for product in CONNECTOR_PRODUCTS],
+                field_name_condition_linking=any,
                 field_name_condition_negation=True,
                 transformation=FieldMappingTransformation({
                     "EventID": "vendor_id", 
