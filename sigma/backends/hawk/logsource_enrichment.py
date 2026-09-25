@@ -7,6 +7,7 @@ import yaml
 
 
 _CONFIG_PATH = Path(__file__).resolve().parent / "config" / "logsource_enrichments.yml"
+_CATEGORY_PATH = Path(__file__).resolve().parent / "config" / "category_sources.yml"
 
 
 class LogSourceEnrichmentEntry:
@@ -31,6 +32,26 @@ class LogSourceEnricher:
             for entry in logsources.values()
             if entry.get("conditions")
         ]
+        try:
+            cats = yaml.safe_load(_CATEGORY_PATH.read_text(encoding="utf-8")) or {}
+        except FileNotFoundError:
+            cats = {}
+        self._categories: dict = {
+            str(name).lower(): [src.get("gate", {}) for src in (entry.get("sources") or []) if src.get("gate")]
+            for name, entry in (cats.get("categories") or {}).items()
+        }
+
+    def category_sources(self, logsource: Any) -> List[dict]:
+        """Cross-vendor gate alternatives for a category rule (OR of per-source conditions).
+
+        Applies to Windows (or product-less) category rules; the registry is the single place
+        where "which live sources carry this event class" is recorded.
+        """
+        category = getattr(logsource, "category", None)
+        product = str(getattr(logsource, "product", "") or "").lower()
+        if not category or product not in ("windows", ""):
+            return []
+        return list(self._categories.get(str(category).lower(), []))
 
     def match(self, logsource: Any) -> Iterable[dict[str, Any]]:
         for entry in self._entries:
