@@ -352,7 +352,7 @@ def test_value_count_correlation_emits_atomic_distinct_counter() -> None:
     args = fn["args"]
     # group-by IpAddress → ip_src; field User → correlation_username
     assert args["columns"] == ["ip_src"]
-    assert args["distinct_column"]["value"] == "correlation_username"
+    assert args["distinct_column"]["value"] == "user"
     assert args["comparison"]["value"] == ">="
     assert args["threshold"]["value"] == 5
     assert args["limit"]["value"] == 15  # 15m → 15 minutes

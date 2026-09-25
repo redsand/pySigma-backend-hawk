@@ -418,7 +418,6 @@ fieldmappings:
   TargetObject: object_target
   Description: image_description
   description: image_description
-  User: correlation_username
   cs-host: http_host
   c-host: http_host
   c-useragent: http_user_agent
