@@ -622,9 +622,13 @@ class hawkBackend(TextQueryBackend):
         if norm_key.startswith("file_hash_") and isinstance(value, str) and re.fullmatch(r"[A-Fa-f0-9]{6,}", value):
             is_regex = False  # a bare hash pulled out of a `Hashes|contains` wildcard is an exact value
         norm_key, value = self._normalize_integrity_level(norm_key, value)
-        if key == "Provider_Name" and isinstance(value, str) and value.startswith("Microsoft-Windows-"):
+        if key in ("Provider_Name", "ProviderName") and isinstance(value, str) and not is_regex:
+            # hawkagentd strips "Microsoft-Windows-" and replaces spaces with "_" in the provider
+            # name before it becomes product_name (hawkagentd/hawk-events.c).
             norm_key = "product_name"
-            value = value[len("Microsoft-Windows-"):]
+            if value.startswith("Microsoft-Windows-"):
+                value = value[len("Microsoft-Windows-"):]
+            value = value.replace(" ", "_")
 
         if not_node:
             _invert_op = {"=": "!=", "!=": "=", "<": ">=", "<=": ">", ">": "<=", ">=": "<"}

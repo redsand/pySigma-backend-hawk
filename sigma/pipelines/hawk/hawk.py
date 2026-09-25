@@ -1,6 +1,7 @@
 from sigma.pipelines.common import logsource_windows, windows_logsource_mapping
-from sigma.processing.transformations import AddConditionTransformation, FieldMappingTransformation, DetectionItemFailureTransformation, RuleFailureTransformation, SetStateTransformation
-from sigma.processing.conditions import LogsourceCondition, IncludeFieldCondition, ExcludeFieldCondition, RuleProcessingItemAppliedCondition
+from sigma.processing.transformations import AddConditionTransformation, FieldFunctionTransformation, FieldMappingTransformation, DetectionItemFailureTransformation, RuleFailureTransformation, SetStateTransformation
+from sigma.processing.conditions import LogsourceCondition, IncludeFieldCondition, ExcludeFieldCondition, RuleProcessingItemAppliedCondition, FieldNameProcessingItemAppliedCondition
+from .windows_unified import windows_unified_field
 from sigma.processing.pipeline import ProcessingItem, ProcessingPipeline
 
 # TODO: the following code is just an example extend/adapt as required.
@@ -25,8 +26,19 @@ def hawk_pipeline() -> ProcessingPipeline:
             for service, source in windows_logsource_mapping.items()
         ] +
         [
-            ProcessingItem(     # Field mappings
+            # Windows: name fields exactly as hawk-ece normalizes hawkagentd's unified format
+            # (translation table, else uncamel). Verified against live streamd documents.
+            ProcessingItem(
+                identifier="hawk_windows_unified_fields",
+                transformation=FieldFunctionTransformation({}, windows_unified_field),
+                rule_conditions=[LogsourceCondition(product="windows")],
+            ),
+        ] +
+        [
+            ProcessingItem(     # Field mappings (everything the Windows item did not already name)
                 identifier="hawk_field_mapping",
+                field_name_conditions=[FieldNameProcessingItemAppliedCondition("hawk_windows_unified_fields")],
+                field_name_condition_negation=True,
                 transformation=FieldMappingTransformation({
                     "EventID": "vendor_id", 
                     "dst": "ip_dst_host",
@@ -140,8 +152,6 @@ def hawk_pipeline() -> ProcessingPipeline:
                     "properties.message": "properties.message",
                     "properties_message": "properties.message",
                     "destination.port": "ip_dport",
-                    "user": "correlation_username",
-                    "User": "correlation_username",
                     "c-referer": "http_referer",
                     "cs-referer": "http_referer",
                     "cs-host": "http_host",
