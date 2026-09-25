@@ -1,0 +1,119 @@
+# Cross-vendor event-class registry.
+#
+# A Sigma *category* rule (process_creation, registry_set, ...) is written against canonical
+# columns (image, command, object, filename, ...). Detection logic must stay vendor-neutral, but
+# the score still needs a gate that says "this is a process-creation event", otherwise `image`
+# on a Sysmon 11 file-create event would fire a process rule several times per process.
+#
+# Each category lists every HAWK source population that carries that event class WITH the
+# canonical columns populated, as proven from live normalized documents
+# (converter_validation/live/stream_field_profiles.json). The converter emits the gate as an OR
+# over these sources. Add a source only after its profile shows the columns present.
+#
+# verified: which live profile proved the columns (date); columns: the canonical columns seen.
+categories:
+  process_creation:
+    sources:
+      - gate: {product_name: Sysmon, vendor_id: "1"}
+        verified: "Sysmon:1 2026-09-25"
+        columns: [image, command, parent_image, parent_command, original_file_name, integrity_level, user, hashes, logon_id, path]
+      - gate: {product_name: Security-Auditing, vendor_id: "4688"}
+        verified: "Security-Auditing:4688 2026-09-25"
+        columns: [image, command, parent_image, new_process_name, parent_process_name, correlation_username, token_elevation_type, mandatory_label]
+  network_connection:
+    sources:
+      - gate: {product_name: Sysmon, vendor_id: "3"}
+        verified: "Sysmon:3 2026-09-25"
+        columns: [image, user, protocol, destination_is_ipv6, source_is_ipv6]
+  image_load:
+    sources:
+      - gate: {product_name: Sysmon, vendor_id: "7"}
+        verified: "Sysmon:7 2026-09-25"
+        columns: [image, image_loaded, signature, signature_status, hashes, original_file_name]
+  create_remote_thread:
+    sources:
+      - gate: {product_name: Sysmon, vendor_id: "8"}
+        verified: "Sysmon:8 2026-09-25 (explore)"
+        columns: [parent_image, target_image]
+  raw_access_thread:
+    sources:
+      - gate: {product_name: Sysmon, vendor_id: "9"}
+  process_access:
+    sources:
+      - gate: {product_name: Sysmon, vendor_id: "10"}
+        verified: "Sysmon:10 2026-09-25"
+        columns: [parent_image, target_image, access_mask, calltrace]
+  file_event:
+    sources:
+      - gate: {product_name: Sysmon, vendor_id: "11"}
+        verified: "Sysmon:11 2026-09-25"
+        columns: [image, filename, user, creation_utc_time]
+  file_create:
+    sources:
+      - gate: {product_name: Sysmon, vendor_id: "11"}
+  file_change:
+    sources:
+      - gate: {product_name: Sysmon, vendor_id: "2"}
+  file_delete:
+    sources:
+      - gate: {product_name: Sysmon, vendor_id: ["23", "26"]}
+  registry_event:
+    sources:
+      - gate: {product_name: Sysmon, vendor_id: ["12", "13", "14"]}
+        verified: "Sysmon:13 2026-09-25 (object/details present where the agent sends full events)"
+        columns: [image, object, details, event_type, user]
+  registry_add:
+    sources:
+      - gate: {product_name: Sysmon, vendor_id: "12"}
+  registry_delete:
+    sources:
+      - gate: {product_name: Sysmon, vendor_id: "12"}
+  registry_set:
+    sources:
+      - gate: {product_name: Sysmon, vendor_id: "13"}
+  registry_rename:
+    sources:
+      - gate: {product_name: Sysmon, vendor_id: "14"}
+  create_stream_hash:
+    sources:
+      - gate: {product_name: Sysmon, vendor_id: "15"}
+  pipe_created:
+    sources:
+      - gate: {product_name: Sysmon, vendor_id: ["17", "18"]}
+  wmi_event:
+    sources:
+      - gate: {product_name: Sysmon, vendor_id: ["19", "20", "21"]}
+  dns_query:
+    sources:
+      - gate: {product_name: Sysmon, vendor_id: "22"}
+        verified: "Sysmon:22 2026-09-25"
+        columns: [image, hostname_dst, query_results, query_status]
+  driver_load:
+    sources:
+      - gate: {product_name: Sysmon, vendor_id: "6"}
+  sysmon_status:
+    sources:
+      - gate: {product_name: Sysmon, vendor_id: ["4", "5"]}
+  sysmon_error:
+    sources:
+      - gate: {product_name: Sysmon, vendor_id: "255"}
+  file_block:
+    sources:
+      - gate: {product_name: Sysmon, vendor_id: "27"}
+  ps_script:
+    sources:
+      - gate: {product_name: PowerShell, vendor_id: "4104"}
+        verified: "PowerShell:4104 2026-09-25 (explore)"
+        columns: [value, path, script_block_id]
+  ps_module:
+    sources:
+      - gate: {product_name: PowerShell, vendor_id: "4103"}
+  ps_classic_start:
+    sources:
+      - gate: {event_channel: Windows PowerShell, vendor_id: "400"}
+  ps_classic_provider_start:
+    sources:
+      - gate: {event_channel: Windows PowerShell, vendor_id: "600"}
+  ps_classic_script:
+    sources:
+      - gate: {event_channel: Windows PowerShell, vendor_id: "800"}

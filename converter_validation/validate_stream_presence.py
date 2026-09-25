@@ -56,11 +56,17 @@ def leaf_value(leaf: dict):
     return None
 
 
-def target_population(rec: dict) -> tuple:
-    """Return (product_name, vendor_id or '*') derived from enrichment leaves."""
-    product = None
-    vid = "*"
-    for leaf in leaves(rec["rules"]):
+def _gate_populations(node) -> list:
+    """Populations named by a gate node: a leaf/And gives one, an Or gives one per alternative."""
+    if node.get("class") in ("column", "function"):
+        node = {"id": "and", "children": [node]}
+    if str(node.get("id", "")).lower() == "or":
+        out = []
+        for alt in node.get("children", []) or []:
+            out += _gate_populations(alt)
+        return out
+    product, vid = None, "*"
+    for leaf in leaves(node):
         k = leaf.get("key")
         v = leaf_value(leaf)
         if k == "product_name" and isinstance(v, str) and not (leaf.get("args", {}).get("str", {}).get("regex")):
@@ -69,7 +75,26 @@ def target_population(rec: dict) -> tuple:
             product = product or CHANNEL_TO_PRODUCT.get(v.lower())
         elif k == "vendor_id" and v is not None and vid == "*":
             vid = str(v)
-    return product, vid
+    return [(product, vid)] if product else []
+
+
+def target_populations(rec: dict) -> list:
+    """All (product_name, vendor_id) populations a record's gate can match.
+
+    The BETree is And -> And -> [gate nodes..., And(detection)]; gate nodes precede the final
+    detection And. A category rule's gate is a single Or over sources.
+    """
+    try:
+        inner = rec["rules"][0]["children"][0]["children"]
+    except (KeyError, IndexError, TypeError):
+        return []
+    gates = inner[:-1] if len(inner) > 1 else []
+    pops: list = []
+    for g in gates:
+        pops += _gate_populations(g)
+    # de-duplicate, keep order
+    seen = set()
+    return [p for p in pops if not (p in seen or seen.add(p))]
 
 
 def main() -> int:
@@ -89,30 +114,37 @@ def main() -> int:
         if not line.strip():
             continue
         rec = json.loads(line)
-        product, vid = target_population(rec)
-        key = f"{product}:{vid}" if product else None
-        # Only judge a rule against a profile of its exact event population; a Sysmon 12 rule
-        # checked against Sysmon 1 documents would be reported dead for the wrong reason.
-        prof = by_pop.get(key) or (by_pop.get(f"{product}:*") if product else None)
+        pops = target_populations(rec)
         det_cols = sorted({l.get("key") for l in leaves(rec["rules"]) if l.get("class") == "column" and l.get("key") not in ENRICH})
-        if prof is None:
+        # judge against every population the gate admits; the best one decides the verdict
+        best = None
+        for product, vid in pops:
+            key = f"{product}:{vid}"
+            prof = by_pop.get(key) or by_pop.get(f"{product}:*")
+            if prof is None:
+                continue
+            n = prof["n"]
+            fields = prof["fields"]
+            missing = [c for c in det_cols if fields.get(c, 0) == 0]
+            low = [f"{c}:{fields.get(c,0)}/{n}" for c in det_cols if 0 < fields.get(c, 0) < 0.5 * n]
+            present = [c for c in det_cols if fields.get(c, 0) >= 0.5 * n]
+            if det_cols and len(missing) == len(det_cols):
+                verdict = "dead_all_columns_missing"
+            elif missing:
+                verdict = "partial_columns_missing"
+            elif low:
+                verdict = "low_presence"
+            else:
+                verdict = "ok"
+            rank = {"ok": 0, "low_presence": 1, "partial_columns_missing": 2, "dead_all_columns_missing": 3}[verdict]
+            if best is None or rank < best[0]:
+                best = (rank, verdict, key, missing, low, present)
+        if best is None:
             summary["no_profile"] += 1
             rows.append({"hawk_id": rec["hawk_id"], "title": rec.get("_title"), "source": rec.get("_source"),
-                         "population": key or "", "verdict": "no_profile", "missing": "", "low": "", "present": ";".join(det_cols)})
+                         "population": ";".join(f"{p}:{v}" for p, v in pops), "verdict": "no_profile", "missing": "", "low": "", "present": ";".join(det_cols)})
             continue
-        n = prof["n"]
-        fields = prof["fields"]
-        missing = [c for c in det_cols if fields.get(c, 0) == 0]
-        low = [f"{c}:{fields.get(c,0)}/{n}" for c in det_cols if 0 < fields.get(c, 0) < 0.5 * n]
-        present = [c for c in det_cols if fields.get(c, 0) >= 0.5 * n]
-        if det_cols and len(missing) == len(det_cols):
-            verdict = "dead_all_columns_missing"
-        elif missing:
-            verdict = "partial_columns_missing"
-        elif low:
-            verdict = "low_presence"
-        else:
-            verdict = "ok"
+        _, verdict, key, missing, low, present = best
         summary[verdict] += 1
         for c in missing:
             col_missing[(key, c)] += 1

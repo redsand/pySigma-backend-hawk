@@ -81,3 +81,33 @@ detection:
     out = hawkBackend(processing_pipeline=hawk_pipeline()).convert(SigmaCollection.from_yaml(rule))
     keys = {l["key"] for l in _leaves(out[0]["rules"])}
     assert {"image", "command"} <= keys
+
+
+def test_process_creation_gate_is_cross_vendor_or() -> None:
+    rule = r"""
+title: T
+id: 66666666-2222-3333-4444-555555555555
+status: test
+level: high
+logsource:
+    product: windows
+    category: process_creation
+detection:
+    selection:
+        Image|endswith: '\certutil.exe'
+        CommandLine|contains: 'urlcache'
+    condition: selection
+"""
+    out = hawkBackend(processing_pipeline=hawk_pipeline()).convert(SigmaCollection.from_yaml(rule))
+    inner = out[0]["rules"][0]["children"][0]["children"]
+    gate = inner[0]
+    assert gate["id"] == "or", gate
+    vids = set()
+    for alt in gate["children"]:
+        leaves = _leaves(alt)
+        vids.add(next(l["args"]["str"]["value"] for l in leaves if l["key"] == "vendor_id"))
+        assert any(l["key"] == "product_name" for l in leaves)
+    assert vids == {"1", "4688"}
+    # detection logic stays vendor-neutral canonical columns
+    det = _leaves(inner[-1])
+    assert {l["key"] for l in det} == {"image", "command"}

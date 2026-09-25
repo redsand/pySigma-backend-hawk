@@ -781,6 +781,20 @@ class hawkBackend(TextQueryBackend):
     def _build_logsource_enrichment_nodes(self, rule: SigmaRule) -> list[dict]:
         nodes: list[dict] = []
         seen: set[str] = set()
+        # Category rules: one gate that ORs every live source of that event class, so the
+        # vendor-neutral detection logic applies across Sysmon, Security auditing, EDR, ...
+        alternatives = self.logsource_enricher.category_sources(rule.logsource)
+        if alternatives:
+            groups: list[dict] = []
+            for conditions in alternatives:
+                leaves = self._nodes_from_conditions(conditions)
+                if not leaves:
+                    continue
+                groups.append(leaves[0] if len(leaves) == 1 else {"id": "and", "key": "And", "children": leaves})
+            if len(groups) == 1:
+                return [groups[0]] if groups[0].get("class") else groups[0]["children"]
+            if groups:
+                return [{"id": "or", "key": "Or", "children": self._dedupe_children(groups)}]
         for conditions in self.logsource_enricher.match(rule.logsource):
             for node in self._nodes_from_conditions(conditions):
                 sig = self._node_signature(node)
