@@ -56,17 +56,26 @@ def leaf_value(leaf: dict):
     return None
 
 
-def _gate_populations(node) -> list:
-    """Populations named by a gate node: a leaf/And gives one, an Or gives one per alternative."""
+def _alt_groups(node) -> list:
+    """Split a gate node into OR alternatives; each alternative is a flat list of leaves."""
     if node.get("class") in ("column", "function"):
-        node = {"id": "and", "children": [node]}
+        return [[node]]
     if str(node.get("id", "")).lower() == "or":
         out = []
         for alt in node.get("children", []) or []:
-            out += _gate_populations(alt)
+            out += _alt_groups(alt)
         return out
-    product, vid = None, "*"
-    for leaf in leaves(node):
+    # And: cartesian product of its children's alternatives
+    groups = [[]]
+    for child in node.get("children", []) or []:
+        child_alts = _alt_groups(child)
+        groups = [g + a for g in groups for a in child_alts]
+    return groups
+
+
+def _population_of(leaves_: list):
+    product, vid, source = None, "*", None
+    for leaf in leaves_:
         k = leaf.get("key")
         v = leaf_value(leaf)
         if k == "product_name" and isinstance(v, str) and not (leaf.get("args", {}).get("str", {}).get("regex")):
@@ -75,26 +84,33 @@ def _gate_populations(node) -> list:
             product = product or CHANNEL_TO_PRODUCT.get(v.lower())
         elif k == "vendor_id" and v is not None and vid == "*":
             vid = str(v)
-    return [(product, vid)] if product else []
+        elif k == "product_source" and isinstance(v, str):
+            source = source or v
+    return product, vid, source
 
 
 def target_populations(rec: dict) -> list:
-    """All (product_name, vendor_id) populations a record's gate can match.
+    """All populations a record's gate admits, as (product, vendor_id, product_source).
 
-    The BETree is And -> And -> [gate nodes..., And(detection)]; gate nodes precede the final
-    detection And. A category rule's gate is a single Or over sources.
+    The BETree is And -> And -> [gate nodes..., And(detection)]. All gate nodes are ANDed, so
+    their OR alternatives combine as a cartesian product.
     """
     try:
         inner = rec["rules"][0]["children"][0]["children"]
     except (KeyError, IndexError, TypeError):
         return []
     gates = inner[:-1] if len(inner) > 1 else []
+    if not gates:
+        return []
+    combined = _alt_groups({"id": "and", "children": gates})
     pops: list = []
-    for g in gates:
-        pops += _gate_populations(g)
-    # de-duplicate, keep order
     seen = set()
-    return [p for p in pops if not (p in seen or seen.add(p))]
+    for grp in combined:
+        pop = _population_of(grp)
+        if pop[0] and pop not in seen:
+            seen.add(pop)
+            pops.append(pop)
+    return pops
 
 
 def main() -> int:
@@ -118,9 +134,15 @@ def main() -> int:
         det_cols = sorted({l.get("key") for l in leaves(rec["rules"]) if l.get("class") == "column" and l.get("key") not in ENRICH})
         # judge against every population the gate admits; the best one decides the verdict
         best = None
-        for product, vid in pops:
+        for product, vid, source in pops:
             key = f"{product}:{vid}"
-            prof = by_pop.get(key) or by_pop.get(f"{product}:*")
+            prof = by_pop.get(key)
+            if prof is None and source:
+                key = f"source={source}:*"
+                prof = by_pop.get(key)
+            if prof is None:
+                key = f"{product}:*"
+                prof = by_pop.get(key)
             if prof is None:
                 continue
             n = prof["n"]
@@ -142,7 +164,7 @@ def main() -> int:
         if best is None:
             summary["no_profile"] += 1
             rows.append({"hawk_id": rec["hawk_id"], "title": rec.get("_title"), "source": rec.get("_source"),
-                         "population": ";".join(f"{p}:{v}" for p, v in pops), "verdict": "no_profile", "missing": "", "low": "", "present": ";".join(det_cols)})
+                         "population": ";".join(f"{p}:{v}" + (f"@{src}" if src else "") for p, v, src in pops), "verdict": "no_profile", "missing": "", "low": "", "present": ";".join(det_cols)})
             continue
         _, verdict, key, missing, low, present = best
         summary[verdict] += 1
