@@ -618,6 +618,7 @@ class hawkBackend(TextQueryBackend):
                 value, is_regex = ".*" + re.escape(value) + ".*", True
 
         norm_key = self.field_mapper.map(key)
+        norm_key, value, is_regex = self._normalize_connector_value(norm_key, value, is_regex)
         norm_key, value = self._normalize_hash_field(norm_key, value)
         if norm_key.startswith("file_hash_") and isinstance(value, str) and re.fullmatch(r"[A-Fa-f0-9]{6,}", value):
             is_regex = False  # a bare hash pulled out of a `Hashes|contains` wildcard is an exact value
@@ -701,6 +702,22 @@ class hawkBackend(TextQueryBackend):
         if ends_open:
             return "^" + rx[:-2], True  # startswith
         return "^" + rx + "$", True     # wildcard in the middle: whole-value match
+
+    def _normalize_connector_value(self, norm_key: str, value: Any, is_regex: bool):
+        """Live value vocabularies that differ from Sigma's (verified 2026-09-25)."""
+        if norm_key == "ResultStatus" and isinstance(value, str) and not is_regex:
+            v = value.lower()
+            if v in ("success", "succeeded"):
+                return norm_key, "^Succe", True   # Management API: "Success" / "Succeeded"
+            if v in ("failure", "failed"):
+                return norm_key, "^Fail", True
+        if norm_key == "audit_login" and not is_regex:
+            # Sigma ResultType 0 == successful sign-in; anything else is a failure code
+            try:
+                return norm_key, (int(value) == 0), False
+            except (TypeError, ValueError):
+                return norm_key, value, is_regex
+        return norm_key, value, is_regex
 
     def _normalize_hash_field(self, norm_key: str, value: Any) -> tuple[str, Any]:
         # Enforce aliasing and split-friendly hash selection based on authoritative Hawk columns.
