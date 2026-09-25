@@ -44,20 +44,32 @@ logsources:
     conditions:
       vendor_name: Microsoft
       product_name: Onelogin
-  microsoft365:
+  m365-threat-management:
     match:
       product: m365
       service: threat_management
     conditions:
       vendor_name: Microsoft
-      product_name: '365'
-  m365:
+      product_name: Azure
+      product_source:
+      - Alerts
+      - Incidents
+      - DefenderAlerts
+  m365-audit:
     match:
       product: m365
-      service: threat_management
+      service:
+      - exchange
+      - sharepoint
+      - audit
+      - azuread
+      - azureactivedirectory
+      - general
+      - teams
+      - onedrive
     conditions:
       vendor_name: Microsoft
-      product_name: '365'
+      product_name: Azure
   google-workspace:
     match:
       service: google_workspace.admin
