@@ -49,7 +49,7 @@ def load_converted(path: Path) -> dict:
     return out
 
 
-def to_form(rec: dict, group: str) -> dict:
+def to_form(rec: dict, group: str, date_added: str = "") -> dict:
     hid = str(rec["hawk_id"])
     if not re.search(r"[A-Za-z]", hid):
         hid = "SIGMA-" + hid  # the API requires a letter in a hawk_id
@@ -67,6 +67,9 @@ def to_form(rec: dict, group: str) -> dict:
         "technique": (rec.get("technique") or "")[:16],
         "tags": json.dumps(rec.get("tags") or []),
         "rules": json.dumps(rec.get("rules") or []),
+        # the hawk_id insert/upsert stores date_added from the request (epoch 0 when absent);
+        # keep an existing row's date, stamp new rows with now (UTC)
+        "date_added": date_added or datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S"),
     }
     for i, t in enumerate(rec.get("tactics") or []):
         for k, v in t.items():
@@ -125,7 +128,9 @@ def main() -> int:
 
     for hid in ids:
         rec = conv[hid]
-        form = to_form(rec, args.group)
+        prev = live_before.get(hid, {})
+        prev_date = str(prev.get("date_added") or "")
+        form = to_form(rec, args.group, prev_date if prev_date and not prev_date.startswith("1970") else "")
         item = {
             "hawk_id": form["hawk_id"],
             "title": rec.get("filter_name"),
