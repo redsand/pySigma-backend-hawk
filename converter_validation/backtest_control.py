@@ -6,7 +6,7 @@ from pathlib import Path
 import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from backtest_explore import api_key, run_one  # noqa: E402
+from backtest_explore import api_key, run_one, load_indexed  # noqa: E402
 
 
 def leaf(key, value, regex=False, op="=", typ="str"):
@@ -31,10 +31,12 @@ CONTROLS = [
 
 s = requests.Session()
 s.headers["Authorization"] = "Bearer " + api_key()
+idx = load_indexed()
+print("indexed columns known:", len(idx))
 for name, children in CONTROLS:
     rec = {"hawk_id": "control", "filter_name": name, "_level": "test", "correlation_action": 0,
            "rules": [{"id": "and", "key": "And", "children": [{"id": "and", "key": "And", "children": children}]}]}
     e = run_one(s, rec, 24)
     print(f"{e.get('status'):11s} hits={e.get('hits', '-'):>8} {name}  {e.get('error') or e.get('reason') or ''}")
     if e.get("status") == "ok":
-        print("            by:", [(b["product"], b["hits"]) for b in e["by_product"][:4]], "| q:", e["q"][:160])
+        print("            by:", [(b["product"], b["hits"]) for b in e["by_product"][:4]], "| bound:", e.get("bound"), "| q:", e["q"][:160])
