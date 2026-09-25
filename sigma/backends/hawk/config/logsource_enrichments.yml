@@ -107,7 +107,7 @@ logsources:
     match:
       service: msexchange-management
     conditions:
-      product_name: MSExchange Management
+      product_name: MSExchange_Management
   windows:
     match:
       product: windows
@@ -725,7 +725,8 @@ logsources:
       product: windows
       service: powershell-classic
     conditions:
-      product_name: Windows PowerShell
+      product_name: PowerShell
+      event_channel: Windows PowerShell
   windows-taskscheduler:
     match:
       product: windows
@@ -743,13 +744,13 @@ logsources:
       product: windows
       service: dns-server
     conditions:
-      product_name: DNS Server
+      product_name: DNS-Server-Service
   windows-dns-server-audit:
     match:
       product: windows
       service: dns-server-audit
     conditions:
-      product_name: DNS Server
+      product_name: DNS-Server-Service
   windows-driver-framework:
     match:
       product: windows
@@ -773,7 +774,7 @@ logsources:
       product: windows
       service: windefend
     conditions:
-      product_name: Windows Defender
+      product_name: Windows_Defender
   windows-applocker:
     match:
       product: windows
@@ -785,7 +786,7 @@ logsources:
       product: windows
       service: firewall-as
     conditions:
-      product_name: Windows Firewall With Advanced Security
+      product_name: Windows_Firewall_With_Advanced_Security
   windows-ps-module:
     match:
       product: windows
@@ -806,21 +807,24 @@ logsources:
       category: ps_classic_start
     conditions:
       EventID: 400
-      product_name: Windows PowerShell
+      product_name: PowerShell
+      event_channel: Windows PowerShell
   windows-ps-classic-provider:
     match:
       product: windows
       category: ps_classic_provider_start
     conditions:
       vendor_id: 600
-      product_name: Windows PowerShell
+      product_name: PowerShell
+      event_channel: Windows PowerShell
   windows-ps-classic-script:
     match:
       product: windows
       category: ps_classic_script
     conditions:
       vendor_id: 800
-      product_name: Windows PowerShell
+      product_name: PowerShell
+      event_channel: Windows PowerShell
   windows-service-bus:
     match:
       service: Microsoft-ServiceBus-Client
@@ -831,7 +835,7 @@ logsources:
       product: windows
       service: msexchange-management
     conditions:
-      product_name: MSExchange Management
+      product_name: MSExchange_Management
   windows-printservice-admin:
     match:
       product: windows

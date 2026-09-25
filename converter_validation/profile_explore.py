@@ -21,8 +21,16 @@ def targets():
         t.append((f'{p}:*', f'product_name:"{p}"'))
     for v in ('SentinelOne','ThreatLocker','AWS','AWS CloudTrail','Okta','Duo','Workday','LastPass','ProofPoint','Varonis','Tenable.io','Snort','Suricata','Linux'):
         t.append((f'vendor={v}:*', f'vendor_name:"{v}"'))
+    for ps in ('signInAudits','directoryAudits','Identity Protection','provisioning','Exchange','SharePoint','AzureActiveDirectory','General','DefenderAlerts','Alerts','Incidents','Teams','oauth2PermissionGrants','servicePrincipals','riskDetections','riskyUsers','intune'):
+        t.append((f'source={ps}:*', f'product_source:"{ps}"'))
+    t.append(('Audit:EXECVE','product_name:"Audit" AND payload:"type=EXECVE"'))
+    t.append(('Audit:SYSCALL','product_name:"Audit" AND payload:"type=SYSCALL"'))
+    t.append(('Audit:PROCTITLE','product_name:"Audit" AND payload:"type=PROCTITLE"'))
+    t.append(('OperatingSystem:sshd','product_name:"OperatingSystem" AND payload:"sshd"'))
+    t.append(('vendor=AWS CloudTrail:7d','vendor_name:"AWS CloudTrail"'))
     return t
 def one(key_, q, size=80, window='now-24h'):
+    if key_.endswith(':7d'): window='now-7d'
     t0=time.time()
     try:
         r=requests.post(B+'explore/search',headers=H,data={'idx':IDX,'q':q,'from':window,'to':'now','size':str(size),'offset':'0'},timeout=600,verify=False)
