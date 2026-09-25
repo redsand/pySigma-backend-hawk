@@ -4,4 +4,6 @@
 .pytest_cache/
 cov.xml
 dist/
-docs/_build
+docs/_buildconverter_validation/live/*.json
+converter_validation/**/hawk.env
+hawk.env

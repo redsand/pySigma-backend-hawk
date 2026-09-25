@@ -21,12 +21,17 @@ from sigma.rule import SigmaRule
 from sigma.types import (
     CompareOperators,
     SigmaBool,
+    SigmaCasedString,
+    SigmaCIDRExpression,
     SigmaCompareExpression,
+    SigmaExists,
     SigmaExpansion,
     SigmaFieldReference,
     SigmaNull,
     SigmaNumber,
     SigmaRegularExpression,
+    SigmaString,
+    SpecialChars,
 )
 
 from .field_mapper import FieldMapper
@@ -40,6 +45,31 @@ _CORR_OP_STR: Dict[SigmaCorrelationConditionOperator, str] = {
     SigmaCorrelationConditionOperator.GTE: ">=",
     SigmaCorrelationConditionOperator.EQ: "=",
     SigmaCorrelationConditionOperator.NEQ: "!=",
+}
+
+# MITRE ATT&CK tactic slugs (as used in Sigma `attack.<tactic>` tags) -> tactic ids.
+_ATTACK_TACTICS: Dict[str, tuple] = {
+    "reconnaissance": ("TA0043", "Reconnaissance"),
+    "resource-development": ("TA0042", "Resource Development"),
+    "resource_development": ("TA0042", "Resource Development"),
+    "initial-access": ("TA0001", "Initial Access"),
+    "initial_access": ("TA0001", "Initial Access"),
+    "execution": ("TA0002", "Execution"),
+    "persistence": ("TA0003", "Persistence"),
+    "privilege-escalation": ("TA0004", "Privilege Escalation"),
+    "privilege_escalation": ("TA0004", "Privilege Escalation"),
+    "defense-evasion": ("TA0005", "Defense Evasion"),
+    "defense_evasion": ("TA0005", "Defense Evasion"),
+    "credential-access": ("TA0006", "Credential Access"),
+    "credential_access": ("TA0006", "Credential Access"),
+    "discovery": ("TA0007", "Discovery"),
+    "lateral-movement": ("TA0008", "Lateral Movement"),
+    "lateral_movement": ("TA0008", "Lateral Movement"),
+    "collection": ("TA0009", "Collection"),
+    "exfiltration": ("TA0010", "Exfiltration"),
+    "command-and-control": ("TA0011", "Command and Control"),
+    "command_and_control": ("TA0011", "Command and Control"),
+    "impact": ("TA0040", "Impact"),
 }
 
 # inputs schema descriptors (UI metadata, not evaluated by C engine).
@@ -261,6 +291,7 @@ class hawkBackend(TextQueryBackend):
     def _build_correlation_record(self, rule: SigmaCorrelationRule, children: list[dict]) -> dict:
         """Build a HAWK score record for a correlation rule with a list of BETree child nodes."""
         tags, techniques = self._normalize_tags_and_techniques(rule.tags or [])
+        tactics = self._normalize_tactics(rule.tags or [])
         if self._is_experimental(rule) and "qa" not in tags:
             tags.append("qa")
         score, score_reason = self._calculate_score(rule)
@@ -285,10 +316,29 @@ class hawkBackend(TextQueryBackend):
             "references": "\n".join(rule.references or []),
             "comments": "",
             "correlation_action": score,
+            # scores.technique is VARCHAR(16): a single technique id. The rest ride in tags.
             "technique": techniques[0] if techniques else "",
             "tags": tags,
-            "tactics": [],
+            "tactics": tactics,
         }
+
+    def _normalize_tactics(self, tags: list) -> list:
+        out: list = []
+        seen: set = set()
+        for raw in tags:
+            m = re.match(r"^attack\.([a-z_\-]+)$", str(raw).strip(), flags=re.IGNORECASE)
+            if not m:
+                continue
+            hit = _ATTACK_TACTICS.get(m.group(1).lower())
+            if hit is None or hit[0] in seen:
+                continue
+            seen.add(hit[0])
+            out.append({
+                "tactic_id": hit[0],
+                "tactic_name": hit[1],
+                "tactic_url": f"https://attack.mitre.org/tactics/{hit[0]}/",
+            })
+        return out
 
     def _corr_fieldref(self, rule: SigmaCorrelationRule) -> str:
         """Return the mapped field name from a correlation rule's condition fieldref."""
@@ -373,6 +423,7 @@ class hawkBackend(TextQueryBackend):
 
     def _build_record(self, rule: SigmaRule, children: list[dict]) -> dict:
         tags, techniques = self._normalize_tags_and_techniques(rule.tags or [])
+        tactics = self._normalize_tactics(rule.tags or [])
         if self._is_experimental(rule) and "qa" not in tags:
             tags.append("qa")
         score, score_reason = self._calculate_score(rule)
@@ -398,10 +449,29 @@ class hawkBackend(TextQueryBackend):
             "comments": "",
             "correlation_action": score,
             # hawk-ece currently consumes a single technique string.
+            # scores.technique is VARCHAR(16): a single technique id. The rest ride in tags.
             "technique": techniques[0] if techniques else "",
             "tags": tags,
-            "tactics": [],
+            "tactics": tactics,
         }
+
+    def _normalize_tactics(self, tags: list) -> list:
+        out: list = []
+        seen: set = set()
+        for raw in tags:
+            m = re.match(r"^attack\.([a-z_\-]+)$", str(raw).strip(), flags=re.IGNORECASE)
+            if not m:
+                continue
+            hit = _ATTACK_TACTICS.get(m.group(1).lower())
+            if hit is None or hit[0] in seen:
+                continue
+            seen.add(hit[0])
+            out.append({
+                "tactic_id": hit[0],
+                "tactic_name": hit[1],
+                "tactic_url": f"https://attack.mitre.org/tactics/{hit[0]}/",
+            })
+        return out
 
     def _normalize_tags_and_techniques(self, tags: list[Any]) -> tuple[list[str], list[str]]:
         out_tags: list[str] = ["sigma"]
@@ -470,28 +540,32 @@ class hawkBackend(TextQueryBackend):
                 return self._expand_sigma_expansion(node.field, node.value, not_node)
             return self._leaf_node(node.field, node.value, not_node)
         if isinstance(node, ConditionValueExpression):
+            # Sigma keywords match anywhere in the event: substring semantics on payload.
             if isinstance(node.value, SigmaExpansion):
-                return self._expand_sigma_expansion("payload", node.value, not_node)
-            return self._leaf_node("payload", node.value, not_node)
+                return self._expand_sigma_expansion("payload", node.value, not_node, contains=True)
+            return self._leaf_node("payload", node.value, not_node, contains=True)
         raise NotImplementedError(f"Unsupported node type: {type(node)}")
 
     def _expand_sigma_expansion(
-        self, field: str, expansion: SigmaExpansion, not_node: bool
+        self, field: str, expansion: SigmaExpansion, not_node: bool, contains: bool = False
     ) -> Optional[dict]:
         children: list[dict] = []
         for val in expansion.values:
-            child = self._leaf_node(field, val, not_node)
+            child = self._leaf_node(field, val, not_node, contains=contains)
             if child is not None:
                 children.append(child)
         if not children:
             return None
         return {"id": "or", "key": "Or", "children": self._dedupe_children(children)}
 
-    def _leaf_node(self, key: str, raw_value: Any, not_node: bool) -> dict:
-        # Null values map to the empty() IS-NULL function node.
-        if isinstance(raw_value, SigmaNull):
+    def _leaf_node(self, key: str, raw_value: Any, not_node: bool, contains: bool = False) -> dict:
+        # Null values map to the empty() IS-NULL function node; `|exists` is its inverse.
+        if isinstance(raw_value, (SigmaNull, SigmaExists)):
             norm_key = self.field_mapper.map(key)
-            comparison_str = "!=" if not_node else "="
+            is_null = isinstance(raw_value, SigmaNull) or not raw_value.exists
+            comparison_str = "=" if is_null else "!="
+            if not_node:
+                comparison_str = "!=" if comparison_str == "=" else "="
             return {
                 "key": "empty",
                 "class": "function",
@@ -506,6 +580,7 @@ class hawkBackend(TextQueryBackend):
         comparison_op = "="
         value = raw_value
         is_regex = False
+        case_sensitive = False
 
         if isinstance(value, SigmaCompareExpression):
             op_map = {
@@ -517,28 +592,35 @@ class hawkBackend(TextQueryBackend):
             comparison_op = op_map.get(value.op, "=")
             value = value.number.number
         elif isinstance(value, SigmaRegularExpression):
+            # Already a regex: never re-escape. hawk-ece PCRE matching is case-insensitive
+            # by default, which is the production convention for Sigma-derived scores.
             value = str(value.regexp)
+            if contains and not value.startswith(".*") and not value.startswith("^"):
+                value = ".*" + value
+            if contains and not value.endswith(".*") and not value.endswith("$"):
+                value = value + ".*"
             is_regex = True
+        elif isinstance(value, SigmaCIDRExpression):
+            # hawk-ece detects a/b notation in a plain string value and does a CIDR match.
+            value = str(value.cidr)
         elif isinstance(value, SigmaBool):
+            # hawk-ece parses the bool arg from a string ("true"/"success" => true); a JSON
+            # boolean is read as NULL and silently becomes false.
             value = bool(value)
         elif isinstance(value, SigmaNumber):
             value = value.number
+        elif isinstance(value, SigmaString):
+            case_sensitive = isinstance(value, SigmaCasedString)
+            value, is_regex = self._sigma_string_to_hawk(value, contains)
         else:
             value = str(value)
-
-        if isinstance(value, str) and ("*" in value or value.startswith("\\\\")):
-            value = value.replace("*", "EEEESTAREEE")
-            value = re.escape(value).replace("EEEESTAREEE", ".*")
-            if value.endswith("\\\\"):
-                value = value[:-2]
-            if value.startswith(".*") and not value.endswith(".*"):
-                value = value[2:] + "$"
-            elif value.endswith(".*") and not value.startswith(".*"):
-                value = "^" + value[:-2]
-            is_regex = True
+            if contains:
+                value, is_regex = ".*" + re.escape(value) + ".*", True
 
         norm_key = self.field_mapper.map(key)
         norm_key, value = self._normalize_hash_field(norm_key, value)
+        if norm_key.startswith("file_hash_") and isinstance(value, str) and re.fullmatch(r"[A-Fa-f0-9]{6,}", value):
+            is_regex = False  # a bare hash pulled out of a `Hashes|contains` wildcard is an exact value
         norm_key, value = self._normalize_integrity_level(norm_key, value)
         if key == "Provider_Name" and isinstance(value, str) and value.startswith("Microsoft-Windows-"):
             norm_key = "product_name"
@@ -553,6 +635,7 @@ class hawkBackend(TextQueryBackend):
         if isinstance(value, bool):
             return_type = "bool"
             arg_key = "bool"
+            value = "true" if value else "false"
         elif isinstance(value, int):
             return_type = "int"
             arg_key = "int"
@@ -570,10 +653,50 @@ class hawkBackend(TextQueryBackend):
                 arg_key: {
                     "value": value,
                     **({"regex": True} if is_regex and arg_key == "str" else {}),
+                    **({"case": True} if case_sensitive and arg_key == "str" else {}),
                 },
             },
             "rule_id": str(uuid.uuid4()),
         }
+
+    def _sigma_string_to_hawk(self, value: SigmaString, contains: bool = False) -> tuple:
+        """Translate a SigmaString (with its wildcard parts) into a hawk-ece value.
+
+        Returns (value, is_regex). Plain strings (no wildcards) stay exact-match values so the
+        engine can use its fast case-insensitive compare. Wildcards become an anchored PCRE:
+        `*` -> `.*`, `?` -> `.`; escaped wildcards stay literal. A wildcard only at the edges
+        yields the familiar startswith/endswith/contains anchoring; a wildcard in the middle is
+        fully anchored because Sigma strings match the whole field value.
+        """
+        parts = list(value.s)
+        if not value.contains_special():
+            plain = "".join(str(p) for p in parts)
+            if contains:
+                return ".*" + re.escape(plain) + ".*", True
+            return plain, False
+        out: list = []
+        for p in parts:
+            if p == SpecialChars.WILDCARD_MULTI:
+                out.append(".*")
+            elif p == SpecialChars.WILDCARD_SINGLE:
+                out.append(".")
+            else:
+                out.append(re.escape(str(p)))
+        rx = "".join(out)
+        if contains:
+            if not rx.startswith(".*"):
+                rx = ".*" + rx
+            if not rx.endswith(".*"):
+                rx = rx + ".*"
+        starts_open = rx.startswith(".*")
+        ends_open = rx.endswith(".*")
+        if starts_open and ends_open:
+            return rx, True             # contains
+        if starts_open:
+            return rx[2:] + "$", True   # endswith
+        if ends_open:
+            return "^" + rx[:-2], True  # startswith
+        return "^" + rx + "$", True     # wildcard in the middle: whole-value match
 
     def _normalize_hash_field(self, norm_key: str, value: Any) -> tuple[str, Any]:
         # Enforce aliasing and split-friendly hash selection based on authoritative Hawk columns.

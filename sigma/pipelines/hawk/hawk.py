@@ -13,9 +13,13 @@ def hawk_pipeline() -> ProcessingPipeline:
         priority=20, 
         items=
         [
+            # Windows service -> channel gate. hawkagentd's unified Windows format stamps the
+            # raw channel into `event_channel` (e.g. "Security", "Microsoft-Windows-Sysmon/Operational").
+            # `hawk_source` is only set by file-tailed JSON sources (Zeek, Suricata) and is never
+            # present on Windows events, so gating on it made every Windows score dead.
             ProcessingItem(
                 identifier=f"hawk_windows_{service}",
-                transformation=AddConditionTransformation({"hawk_source": source}),
+                transformation=AddConditionTransformation({"event_channel": source}),
                 rule_conditions=[logsource_windows(service)],
             )
             for service, source in windows_logsource_mapping.items()

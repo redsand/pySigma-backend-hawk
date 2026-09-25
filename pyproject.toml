@@ -10,9 +10,9 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.8"
-pysigma = "0.11.16"
-sigma-cli = "1.0.4"
+python = "^3.10"
+pysigma = "^1.5.1"
+sigma-cli = "^3.1.0"
 
 [tool.poetry.dev-dependencies]
 
