@@ -208,3 +208,15 @@ def test_not_of_contains_inverts_comparison() -> None:
     img = _leaf(rec, "image")
     assert img["args"]["comparison"]["value"] == "!="
     assert _str_arg(img)["value"] == "\\\\safe\\.exe$"
+
+
+def test_xml_values_accept_entity_encoded_feed() -> None:
+    rec = _convert(_rule("""
+        selection:
+            TaskContent|contains: '<Arguments>/c '
+        condition: selection
+    """, logsource="product: windows|service: security"))
+    arg = _str_arg(_leaf(rec, "task_content"))
+    assert arg["regex"] is True
+    assert "(?:<|&lt;)Arguments(?:>|&gt;)/c\ " in arg["value"]
+    assert arg["value"].startswith(".*") and arg["value"].endswith(".*")

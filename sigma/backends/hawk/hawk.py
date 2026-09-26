@@ -618,6 +618,7 @@ class hawkBackend(TextQueryBackend):
                 value, is_regex = ".*" + re.escape(value) + ".*", True
 
         norm_key = self.field_mapper.map(key)
+        value, is_regex = self._tolerate_xml_entities(value, is_regex)
         norm_key, value, is_regex = self._normalize_connector_value(norm_key, value, is_regex)
         norm_key, value = self._normalize_hash_field(norm_key, value)
         if norm_key.startswith("file_hash_") and isinstance(value, str) and re.fullmatch(r"[A-Fa-f0-9]{6,}", value):
@@ -702,6 +703,31 @@ class hawkBackend(TextQueryBackend):
         if ends_open:
             return "^" + rx[:-2], True  # startswith
         return "^" + rx + "$", True     # wildcard in the middle: whole-value match
+
+    _XML_ENTITY_ALTS = (("&", "(?:&|&amp;)"), ("<", "(?:<|&lt;)"), (">", "(?:>|&gt;)"), ('"', '(?:"|&quot;)'))
+
+    def _tolerate_xml_entities(self, value: Any, is_regex: bool):
+        """Match XML-bearing values whether the feed delivers them raw or entity-encoded.
+
+        hawkagentd renders EventData such as TaskContent / TemplateContent with the XML
+        entities still escaped (a live 4698 event carries literally `&lt;Arguments&gt;`), so a
+        Sigma value like `<Arguments>/c ` would never match. Accept both spellings.
+        """
+        if not isinstance(value, str) or not any(ch in value for ch in "<>"):
+            return value, is_regex
+        if not is_regex:
+            value = "^" + re.escape(value) + "$"
+        out = []
+        i = 0
+        while i < len(value):
+            ch = value[i]
+            if ch == "\\" and i + 1 < len(value):
+                out.append(value[i:i + 2])
+                i += 2
+                continue
+            out.append(dict(self._XML_ENTITY_ALTS).get(ch, ch))
+            i += 1
+        return "".join(out), True
 
     def _normalize_connector_value(self, norm_key: str, value: Any, is_regex: bool):
         """Live value vocabularies that differ from Sigma's (verified 2026-09-25)."""
