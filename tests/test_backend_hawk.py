@@ -457,7 +457,7 @@ correlation:
     assert fn["args"]["limit"]["value"] == 120  # 2h → 120 minutes
 
 
-def test_value_sum_correlation_emits_statistic_sum() -> None:
+def test_value_sum_correlation_emits_statistic_window_sum() -> None:
     corr = """
 title: High Bytes Transferred
 id: 66666666-6666-6666-6666-aaaaaaaaaaaa
@@ -475,18 +475,19 @@ correlation:
     gte: 1000000
 """
     result = _convert_correlation(corr)
-    fn = _find_function_node(result["rules"], "statistic")
-    assert fn is not None, "statistic function node not found"
+    fn = _find_function_node(result["rules"], "statistic_window")
+    assert fn is not None, "statistic_window function node not found"
     assert fn["args"]["statistic"]["value"] == "sum"
     assert fn["args"]["function_column"]["value"] == "ip_dport"  # DestinationPort mapped
     assert fn["args"]["hour_range"]["value"] == 1  # 1h
-    # companion column comparison node for threshold
-    col = _find_leaf(result["rules"], "ip_dport_sum")
+    # companion int compare leaf on the written column (float leaves cannot read it)
+    new_col = fn["args"]["new_column_name"]["value"]
+    col = _find_leaf(result["rules"], new_col)
     assert col is not None, "companion column comparison node not found"
-    assert col["args"]["float"]["value"] == 1000000.0
+    assert col["return"] == "int" and col["args"]["int"]["value"] == 1000000
 
 
-def test_value_avg_correlation_emits_statistic_avg() -> None:
+def test_value_avg_correlation_emits_statistic_window_avg() -> None:
     corr = """
 title: Average Bytes High
 id: 66666666-6666-6666-6666-bbbbbbbbbbbb
@@ -503,13 +504,14 @@ correlation:
     gt: 500
 """
     result = _convert_correlation(corr)
-    fn = _find_function_node(result["rules"], "statistic")
+    fn = _find_function_node(result["rules"], "statistic_window")
     assert fn is not None
     assert fn["args"]["statistic"]["value"] == "avg"
     assert fn["args"]["hour_range"]["value"] == 2  # 2h
+    assert fn["args"]["window_size"]["value"] == 7200  # one bucket spanning the range keeps avg exact
 
 
-def test_value_percentile_correlation_emits_quantiles() -> None:
+def test_value_percentile_correlation_is_refused() -> None:
     corr = """
 title: High 95th Percentile Bytes
 id: 66666666-6666-6666-6666-cccccccccccc
@@ -526,15 +528,12 @@ correlation:
     percentile: 95
     gte: 8000
 """
-    result = _convert_correlation(corr)
-    fn = _find_function_node(result["rules"], "quantiles")
-    assert fn is not None, "quantiles function node not found"
-    assert abs(fn["args"]["percentile"]["value"] - 0.95) < 0.001
-    assert fn["args"]["active_hours"]["value"] == 8
-    assert fn["args"]["column"]["value"] == "ip_dport"
+    import pytest
+    with pytest.raises(NotImplementedError):
+        _convert_correlation(corr)  # hawk-ece quantiles reads a field the loader never sets
 
 
-def test_value_median_correlation_emits_quantiles_half() -> None:
+def test_value_median_correlation_is_refused() -> None:
     corr = """
 title: Median Latency High
 id: 66666666-6666-6666-6666-dddddddddddd
@@ -550,8 +549,6 @@ correlation:
     field: DestinationPort
     gte: 200
 """
-    result = _convert_correlation(corr)
-    fn = _find_function_node(result["rules"], "quantiles")
-    assert fn is not None, "quantiles function node not found"
-    assert fn["args"]["percentile"]["value"] == 0.5  # median = 50th percentile
-    assert fn["args"]["active_hours"]["value"] == 4
+    import pytest
+    with pytest.raises(NotImplementedError):
+        _convert_correlation(corr)  # same engine limitation as value_percentile
