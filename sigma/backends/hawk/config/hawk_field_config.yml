@@ -1,4 +1,12 @@
 fieldmappings:
+  # Proxy / webserver URI fields (verified 2026-09-29 against Zscaler NSSWeblog and AWS WAF events,
+  # which carry the request path in http_path and the Referer in http_referer)
+  c-uri: http_path
+  cs-uri: http_path
+  cs-uri-stem: http_path
+  cs-referrer: http_referer
+  r-dns: http_host
+  c-ip: ip_src
   # ── Group 1: High-impact unknowns resolved 2026-02-21 ──────────────────────
   # host_scan_vuln / host_scan_vuln_name: new columns added to hawk platform
   host_scan_vuln: host_scan_vuln

@@ -117,3 +117,13 @@ categories:
   ps_classic_script:
     sources:
       - gate: {event_channel: Windows PowerShell, vendor_id: "800"}
+  proxy:
+    sources:
+      - gate: {product_name: NSSWeblog}
+        verified: "NSSWeblog:* 2026-09-29 (Zscaler web proxy)"
+        columns: [http_host, http_path, http_method, http_status_code, http_user_agent, url_category, correlation_username]
+  webserver:
+    sources:
+      - gate: {product_name: Web Application Firewall}
+        verified: "vendor=AWS:* 2026-09-29 (AWS WAF request logs)"
+        columns: [http_host, http_path, http_method, http_user_agent, http_referer, http_query]

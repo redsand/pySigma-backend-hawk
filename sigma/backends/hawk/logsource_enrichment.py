@@ -49,7 +49,7 @@ class LogSourceEnricher:
         """
         category = getattr(logsource, "category", None)
         product = str(getattr(logsource, "product", "") or "").lower()
-        if not category or product not in ("windows", ""):
+        if not category or product not in ("windows", "", "none"):
             return []
         return list(self._categories.get(str(category).lower(), []))
 
