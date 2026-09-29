@@ -1,8 +1,8 @@
 from sigma.pipelines.common import logsource_windows, windows_logsource_mapping
-from sigma.processing.transformations import AddConditionTransformation, FieldFunctionTransformation, FieldMappingTransformation, DetectionItemFailureTransformation, RuleFailureTransformation, SetStateTransformation
+from sigma.processing.transformations import AddConditionTransformation, DropDetectionItemTransformation, FieldFunctionTransformation, FieldMappingTransformation, DetectionItemFailureTransformation, RuleFailureTransformation, SetStateTransformation
 from sigma.processing.conditions import LogsourceCondition, IncludeFieldCondition, ExcludeFieldCondition, RuleProcessingItemAppliedCondition, FieldNameProcessingItemAppliedCondition
 from .windows_unified import windows_unified_field
-from .connectors import connector_field, CONNECTOR_PRODUCTS
+from .connectors import connector_field, service_field, CONNECTOR_PRODUCTS, SERVICE_CROSSWALK, DROP_FIELDS
 from sigma.processing.pipeline import ProcessingItem, ProcessingPipeline
 
 # TODO: the following code is just an example extend/adapt as required.
@@ -36,6 +36,34 @@ def hawk_pipeline() -> ProcessingPipeline:
             ),
         ] +
         [
+            # Azure Resource Manager activity logs are not collected by any HAWK connector; a rule
+            # for them would only ever match unrelated Azure (M365) events through its gate.
+            ProcessingItem(
+                identifier="hawk_refuse_azure_activitylogs",
+                transformation=RuleFailureTransformation("Azure activity logs (ARM) are not collected by HAWK; no source to match."),
+                rule_conditions=[LogsourceCondition(product="azure", service="activitylogs")],
+            ),
+        ] +
+        [
+            ProcessingItem(
+                identifier=f"hawk_drop_{product}_{service}",
+                transformation=DropDetectionItemTransformation(),
+                rule_conditions=[LogsourceCondition(product=product, service=service)],
+                field_name_conditions=[IncludeFieldCondition(fields)],
+            )
+            for (product, service), fields in DROP_FIELDS.items()
+        ] +
+        [
+            # Service-specific crosswalks (Graph signIns / directoryAudits / security alerts) run
+            # before the product-level connector item and win for the fields they name.
+            ProcessingItem(
+                identifier=f"hawk_service_fields_{product}_{service}",
+                transformation=FieldFunctionTransformation({}, service_field(product, service)),
+                rule_conditions=[LogsourceCondition(product=product, service=service)],
+            )
+            for (product, service) in SERVICE_CROSSWALK
+        ] +
+        [
             # Cloud connectors: the Python collectors pass the flattened vendor record through
             # verbatim and add canonical columns per hawk-ece-rules/py3/json_key_to_column.py.
             # A Sigma field therefore maps to that table's column when present, else to itself.
@@ -43,6 +71,9 @@ def hawk_pipeline() -> ProcessingPipeline:
                 identifier=f"hawk_connector_fields_{product}",
                 transformation=FieldFunctionTransformation({}, connector_field(product)),
                 rule_conditions=[LogsourceCondition(product=product)],
+                field_name_conditions=[FieldNameProcessingItemAppliedCondition(f"hawk_service_fields_{p}_{s}") for (p, s) in SERVICE_CROSSWALK],
+                field_name_condition_linking=any,
+                field_name_condition_negation=True,
             )
             for product in CONNECTOR_PRODUCTS
         ] +
@@ -50,7 +81,8 @@ def hawk_pipeline() -> ProcessingPipeline:
             ProcessingItem(     # Field mappings (everything the Windows/connector items did not already name)
                 identifier="hawk_field_mapping",
                 field_name_conditions=[FieldNameProcessingItemAppliedCondition("hawk_windows_unified_fields")]
-                + [FieldNameProcessingItemAppliedCondition(f"hawk_connector_fields_{product}") for product in CONNECTOR_PRODUCTS],
+                + [FieldNameProcessingItemAppliedCondition(f"hawk_connector_fields_{product}") for product in CONNECTOR_PRODUCTS]
+                + [FieldNameProcessingItemAppliedCondition(f"hawk_service_fields_{p}_{s}") for (p, s) in SERVICE_CROSSWALK],
                 field_name_condition_linking=any,
                 field_name_condition_negation=True,
                 transformation=FieldMappingTransformation({

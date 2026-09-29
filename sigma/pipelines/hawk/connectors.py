@@ -64,10 +64,91 @@ _CROSSWALK = {
         "status": "ResultStatus",
         "ResultStatus": "ResultStatus",
         "UserId": "correlation_username",
+        "Parameters": "Parameters",
+        "OperationProperties": "OperationProperties",
+        "ModifiedProperties": "ModifiedProperties",
         "ClientIP": "ip_src",
         "ClientIPAddress": "ip_src",
     },
 }
+
+
+# (product, service) -> {sigma field: HAWK column}. Checked from live product_source samples on
+# 2026-09-29 (converter_validation/live/m365_samples.json) plus the collector contract in
+# reports/prompt_m365_collector.md for columns being added.
+SERVICE_CROSSWALK = {
+    ("azure", "signinlogs"): {
+        "ResultType": "errorCode",
+        "Status": "audit_login",
+        "ResultDescription": "failureReason", "Resultdescription": "failureReason",
+        "resultDescription": "failureReason", "failure_status_reason": "failureReason",
+        "AuthenticationRequirement": "authenticationRequirement",
+        "ClientApp": "clientAppUsed", "ClientAppUsed": "clientAppUsed",
+        "ConditionalAccessStatus": "conditionalAccessStatus", "conditionalAccessStatus": "conditionalAccessStatus",
+        "RiskState": "riskState", "riskState": "riskState",
+        "RiskLevelDuringSignIn": "riskLevelDuringSignIn", "RiskLevelAggregated": "riskLevelAggregated",
+        "RiskDetail": "riskDetail", "riskEventType": "riskEventTypes",
+        "ResourceDisplayName": "resourceDisplayName", "resourceDisplayName": "resourceDisplayName",
+        "AppDisplayName": "appDisplayName", "AppId": "appId",
+        "UserPrincipalName": "userPrincipalName", "Username": "userPrincipalName",
+        "userAgent": "userAgent", "UserAgent": "userAgent",
+        "IPAddress": "ipAddress", "IpAddress": "ipAddress",
+        "IsInteractive": "isInteractive",
+        "DeviceDetail.deviceId": "deviceId", "DeviceDetail.trusttype": "deviceTrustType",
+        "DeviceDetail.trustType": "deviceTrustType", "DeviceDetail.isCompliant": "deviceIsCompliant",
+        "DeviceDetail.isManaged": "deviceIsManaged", "DeviceDetail.operatingSystem": "deviceOperatingSystem",
+        "DeviceDetail.browser": "deviceBrowser",
+        "NetworkLocationDetails": "locationCountry", "Location": "locationCountry",
+        "properties.message": "failureReason",
+    },
+    ("azure", "auditlogs"): {
+        "properties.message": "activityDisplayName",
+        "ActivityDisplayName": "activityDisplayName", "activityDisplayName": "activityDisplayName",
+        "OperationName": "activityDisplayName", "operationName": "activityDisplayName",
+        "ActivityType": "activityDisplayName", "activityType": "activityDisplayName",
+        "Category": "category", "category": "category",
+        "LoggedByService": "loggedByService", "loggedByService": "loggedByService",
+        "Status": "result", "Result": "result", "properties.result": "result", "result": "result",
+        "ResultReason": "resultReason", "failure_status_reason": "resultReason",
+        "OperationType": "operationType",
+        "InitiatedBy": "correlation_username", "Initiatedby": "correlation_username",
+        "initiatedBy.user.userPrincipalName": "correlation_username",
+        "Target": "target_username", "TargetResources.userPrincipalName": "target_username",
+        "targetResources.userPrincipalName": "target_username",
+        "TargetResources.type": "targetResourceType", "targetResources.type": "targetResourceType",
+        "TargetResources.displayName": "targetResourceName",
+        "TargetResources": "targetResourceName", "properties.targetResources": "targetResourceName",
+        "TargetResources.modifiedProperties": "modifiedPropertyName",
+        "TargetResources.ModifiedProperties.DisplayName": "modifiedPropertyName",
+        "TargetResources.modifiedProperties.displayName": "modifiedPropertyName",
+        "TargetResources.modifiedProperties.newValue": "modifiedPropertyNewValue",
+        "TargetResources.ModifiedProperties.NewValue": "modifiedPropertyNewValue",
+        "TargetResources.modifiedProperties.oldValue": "modifiedPropertyOldValue",
+        "ConsentContext.IsAdminConsent": "additionalDetails",
+        "additionalDetails.additionalInfo": "additionalDetails", "AdditionalDetails": "additionalDetails",
+    },
+    ("m365", "threat_management"): {
+        "eventName": "title", "EventName": "title",
+        "Payload": "description",
+    },
+}
+DROP_FIELDS = {("m365", "threat_management"): ["eventSource", "status"]}
+
+
+def service_field(product: str, service: str):
+    cross = SERVICE_CROSSWALK[(product, service)]
+    lower = {k.lower(): v for k, v in cross.items()}
+
+    def _map(name):
+        if name is None:
+            return name
+        out = cross.get(name) or lower.get(name.lower())
+        if out is None:
+            out = connector_field(product)(name)
+        windows_unified.EMITTED.add(out)
+        return out
+
+    return _map
 
 
 def connector_field(product: str):
