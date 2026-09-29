@@ -101,6 +101,7 @@ def main() -> int:
     ap.add_argument("--batch-size", type=int, default=100)
     ap.add_argument("--manifest-dir", default=str(HERE / "reports" / "batches"))
     ap.add_argument("--execute", action="store_true")
+    ap.add_argument("--extra-tag", action="append", default=[], help="add a tag to every pushed score (repeatable)")
     ap.add_argument("--verify", action="store_true", help="after pushing, re-read /scores and confirm each id")
     args = ap.parse_args()
 
@@ -130,6 +131,9 @@ def main() -> int:
         rec = conv[hid]
         prev = live_before.get(hid, {})
         prev_date = str(prev.get("date_added") or "")
+        if args.extra_tag:
+            rec = dict(rec)
+            rec["tags"] = list(rec.get("tags") or []) + [t for t in args.extra_tag if t not in (rec.get("tags") or [])]
         form = to_form(rec, args.group, prev_date if prev_date and not prev_date.startswith("1970") else "")
         item = {
             "hawk_id": form["hawk_id"],

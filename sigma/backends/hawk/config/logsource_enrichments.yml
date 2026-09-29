@@ -1,4 +1,46 @@
 logsources:
+  # Platform-level gates (2026-09-29): every rule for these products gets at least a vendor
+  # gate so its canonical columns (image, command, ...) can never match another platform's events.
+  linux-any:
+    match:
+      product: linux
+    conditions:
+      vendor_name: Linux
+  macos-any:
+    match:
+      product: macos
+    conditions:
+      vendor_name: Apple
+  aws-any:
+    match:
+      product: aws
+    conditions:
+      vendor_name: AWS CloudTrail
+  gcp-any:
+    match:
+      product: gcp
+    conditions:
+      vendor_name: Google
+  github-any:
+    match:
+      product: github
+    conditions:
+      vendor_name: GitHub
+  bitbucket-any:
+    match:
+      product: bitbucket
+    conditions:
+      vendor_name: Atlassian
+  kubernetes-any:
+    match:
+      product: kubernetes
+    conditions:
+      vendor_name: Kubernetes
+  opencanary-any:
+    match:
+      product: opencanary
+    conditions:
+      vendor_name: CanaryTools
   antivirus:
     match:
       category: antivirus
