@@ -79,7 +79,8 @@ detection:
 """
     out = hawkBackend(processing_pipeline=hawk_pipeline()).convert(SigmaCollection.from_yaml(rule))
     leaves = {l["key"]: l for l in _leaves(out[0]["rules"])}
-    assert leaves["audit_login"]["args"]["bool"]["value"] == "true"
+    # ResultType is the Graph status.errorCode, emitted by the collector as errorCode
+    assert leaves["errorCode"]["args"]["int"]["value"] == 0
     assert "conditionalAccessStatus" in leaves and "riskState" in leaves
     assert "product_source" in leaves
 
@@ -125,3 +126,68 @@ detection:
     leaves = {l["key"]: l for l in _leaves(out[0]["rules"])}
     assert leaves["product_name"]["args"]["str"]["value"] == "NSSWeblog"
     assert "http_path" in leaves and "http_user_agent" in leaves
+
+
+def test_azure_auditlogs_message_maps_to_activity_display_name() -> None:
+    rule = """
+title: T
+id: aaaaaaaa-2222-3333-4444-555555555555
+status: test
+level: high
+logsource:
+    product: azure
+    service: auditlogs
+detection:
+    selection:
+        properties.message: 'Add member to role'
+        Status: 'Success'
+        TargetResources.modifiedProperties.newValue|contains: 'Global Administrator'
+    condition: selection
+"""
+    out = hawkBackend(processing_pipeline=hawk_pipeline()).convert(SigmaCollection.from_yaml(rule))
+    leaves = {l["key"]: l for l in _leaves(out[0]["rules"])}
+    assert leaves["activityDisplayName"]["args"]["str"]["value"] == "Add member to role"
+    assert leaves["result"]["args"]["str"]["value"] == "success"
+    assert "modifiedPropertyNewValue" in leaves
+    assert leaves["product_source"]["args"]["str"]["value"] == "directoryAudits"
+
+
+def test_m365_threat_management_uses_alert_title_and_drops_eventsource() -> None:
+    rule = """
+title: T
+id: bbbbbbbb-2222-3333-4444-555555555555
+status: test
+level: high
+logsource:
+    product: m365
+    service: threat_management
+detection:
+    selection:
+        eventSource: SecurityComplianceCenter
+        eventName: 'Suspicious email sending patterns detected'
+        status: success
+    condition: selection
+"""
+    out = hawkBackend(processing_pipeline=hawk_pipeline()).convert(SigmaCollection.from_yaml(rule))
+    keys = {l["key"] for l in _leaves(out[0]["rules"])}
+    assert "title" in keys
+    assert "event_source" not in keys and "ResultStatus" not in keys and "eventSource" not in keys
+
+
+def test_azure_activitylogs_are_refused() -> None:
+    import pytest
+    rule = """
+title: T
+id: cccccccc-2222-3333-4444-555555555555
+status: test
+level: high
+logsource:
+    product: azure
+    service: activitylogs
+detection:
+    selection:
+        operationName: 'MICROSOFT.KEYVAULT/VAULTS/DELETE'
+    condition: selection
+"""
+    with pytest.raises(Exception):
+        hawkBackend(processing_pipeline=hawk_pipeline()).convert(SigmaCollection.from_yaml(rule))

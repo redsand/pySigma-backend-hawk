@@ -908,11 +908,18 @@ class hawkBackend(TextQueryBackend):
             if v in ("failure", "failed"):
                 return norm_key, "^Fail", True
         if norm_key == "audit_login" and not is_regex:
-            # Sigma ResultType 0 == successful sign-in; anything else is a failure code
-            try:
-                return norm_key, (int(value) == 0), False
-            except (TypeError, ValueError):
-                return norm_key, value, is_regex
+            # sign-in Status: Success / Failure (and legacy ResultType 0 == success)
+            sv = str(value).strip().lower()
+            if sv in ("success", "succeeded", "0", "true"):
+                return norm_key, True, False
+            if sv in ("failure", "failed", "false"):
+                return norm_key, False, False
+            return norm_key, value, is_regex
+        if norm_key == "errorCode" and isinstance(value, str) and value.strip().lstrip("-").isdigit() and not is_regex:
+            return norm_key, int(value), False
+        if norm_key == "result" and isinstance(value, str) and not is_regex:
+            # directoryAudits result values are lower-case success / failure / clientError
+            return norm_key, {"success": "success", "failure": "failure"}.get(value.lower(), value), False
         return norm_key, value, is_regex
 
     def _normalize_hash_field(self, norm_key: str, value: Any) -> tuple[str, Any]:
