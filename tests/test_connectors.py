@@ -105,3 +105,23 @@ detection:
     assert leaves["event_source"]["args"]["str"]["value"] == "Exchange"
     assert leaves["event_name"]["args"]["str"]["value"] == "Set-Mailbox"
     assert leaves["ResultStatus"]["args"]["str"] == {"value": "^Succe", "regex": True}
+
+
+def test_proxy_rule_gated_on_zscaler_with_uri_mapping() -> None:
+    rule = """
+title: T
+id: 99999999-2222-3333-4444-555555555555
+status: test
+level: high
+logsource:
+    category: proxy
+detection:
+    selection:
+        c-uri|contains: '/wp-content/plugins/'
+        c-useragent|contains: 'python-requests'
+    condition: selection
+"""
+    out = hawkBackend(processing_pipeline=hawk_pipeline()).convert(SigmaCollection.from_yaml(rule))
+    leaves = {l["key"]: l for l in _leaves(out[0]["rules"])}
+    assert leaves["product_name"]["args"]["str"]["value"] == "NSSWeblog"
+    assert "http_path" in leaves and "http_user_agent" in leaves
