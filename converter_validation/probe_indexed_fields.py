@@ -2,6 +2,9 @@
 
 field_caps says "searchable" for everything the mapping ever declared, but `_exists_:<field>`
 over the last few hours is the honest test. Writes live/explore_indexed_fields.json.
+
+Explore only: hawk-sink-elastic drops dotted keys and keys containing a digit, so a 0 here for such
+a column says nothing about what the analytics engine received.
 """
 import concurrent.futures as cf
 import json

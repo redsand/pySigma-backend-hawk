@@ -1,6 +1,10 @@
 """Audit every production score that targets Microsoft 365 / Entra / Azure data.
 
-1. Sample real documents per M365 product_source from the explore index (same JSON the engine emits).
+1. Sample real documents per M365 product_source from the explore index. This is NOT the JSON the
+   engine matched: hawk-sink-elastic indexes only keys matching ^[a-zA-Z_]+$ (<= 64 chars), so
+   dotted keys and any column with a digit (file_hash_sha256, param1) are absent here even when
+   the collector sent them. Treat those as unknown, not missing; verify from collector output.
+   See hawk-ece docs/m365-sigma-field-findings.md.
 2. For each score whose tree gates on M365 data (product_name Azure/Entra/Defender*/Purview/SecureScore,
    product_source, event_source/Workload values, or vendor Microsoft + cloud columns), list every column
    leaf and whether that column exists in the sampled documents of the sources the score can see.
