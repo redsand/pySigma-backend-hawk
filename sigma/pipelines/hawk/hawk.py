@@ -2,7 +2,7 @@ from sigma.pipelines.common import logsource_windows, windows_logsource_mapping
 from sigma.processing.transformations import AddConditionTransformation, DropDetectionItemTransformation, FieldFunctionTransformation, FieldMappingTransformation, DetectionItemFailureTransformation, RuleFailureTransformation, SetStateTransformation
 from sigma.processing.conditions import LogsourceCondition, IncludeFieldCondition, ExcludeFieldCondition, RuleProcessingItemAppliedCondition, FieldNameProcessingItemAppliedCondition
 from .windows_unified import windows_unified_field
-from .connectors import connector_field, service_field, CONNECTOR_PRODUCTS, SERVICE_CROSSWALK, DROP_FIELDS
+from .connectors import connector_field, service_field, CONNECTOR_PRODUCTS, SERVICE_CROSSWALK, DROP_FIELDS, MODIFIED_PROPERTY_FIELDS, ModifiedPropertyPairTransformation
 from sigma.processing.pipeline import ProcessingItem, ProcessingPipeline
 
 # TODO: the following code is just an example extend/adapt as required.
@@ -52,6 +52,15 @@ def hawk_pipeline() -> ProcessingPipeline:
                 field_name_conditions=[IncludeFieldCondition(fields)],
             )
             for (product, service), fields in DROP_FIELDS.items()
+        ] +
+        [
+            # Runs before the crosswalk renames the field, while the property name is still known.
+            ProcessingItem(
+                identifier="hawk_azure_modified_property_pairs",
+                transformation=ModifiedPropertyPairTransformation(),
+                rule_conditions=[LogsourceCondition(product="azure", service="auditlogs")],
+                field_name_conditions=[IncludeFieldCondition(MODIFIED_PROPERTY_FIELDS)],
+            ),
         ] +
         [
             # Service-specific crosswalks (Graph signIns / directoryAudits / security alerts) run
