@@ -7,7 +7,11 @@ key it already is. The tables are bundled as config/connector_field_maps.json (r
 json_key_to_column.py with converter_validation tooling when the rules package changes).
 """
 import json
+import re
 from pathlib import Path
+
+from sigma.processing.transformations.values import ValueTransformation
+from sigma.types import SigmaRegularExpression, SigmaString
 
 from . import windows_unified
 
@@ -98,7 +102,7 @@ SERVICE_CROSSWALK = {
         "DeviceDetail.trustType": "deviceTrustType", "DeviceDetail.isCompliant": "deviceIsCompliant",
         "DeviceDetail.isManaged": "deviceIsManaged", "DeviceDetail.operatingSystem": "deviceOperatingSystem",
         "DeviceDetail.browser": "deviceBrowser",
-        "NetworkLocationDetails": "locationCountry", "Location": "locationCountry",
+        "NetworkLocationDetails": "networkLocationDetails", "Location": "locationCountry",
         "properties.message": "failureReason",
     },
     ("azure", "auditlogs"): {
@@ -124,7 +128,7 @@ SERVICE_CROSSWALK = {
         "TargetResources.modifiedProperties.newValue": "modifiedPropertyNewValue",
         "TargetResources.ModifiedProperties.NewValue": "modifiedPropertyNewValue",
         "TargetResources.modifiedProperties.oldValue": "modifiedPropertyOldValue",
-        "ConsentContext.IsAdminConsent": "additionalDetails",
+        "ConsentContext.IsAdminConsent": "modifiedPropertyPairs",
         "additionalDetails.additionalInfo": "additionalDetails", "AdditionalDetails": "additionalDetails",
     },
     ("m365", "threat_management"): {
@@ -133,6 +137,20 @@ SERVICE_CROSSWALK = {
     },
 }
 DROP_FIELDS = {("m365", "threat_management"): ["eventSource", "status"]}
+
+# Sigma auditlogs fields that are really directoryAudits modified-property names. The collector
+# writes modifiedPropertyPairs as "Name=NewValue;..." with Graph's JSON-quoted values
+# (ConsentContext.IsAdminConsent="False"), so the value must be matched beside its name.
+MODIFIED_PROPERTY_FIELDS = ["ConsentContext.IsAdminConsent"]
+
+
+class ModifiedPropertyPairTransformation(ValueTransformation):
+    """Rewrite `<property>: value` into a regex over the named pair in modifiedPropertyPairs."""
+
+    def apply_value(self, field: str, val: SigmaString):
+        if val.contains_special():
+            return None
+        return SigmaRegularExpression('(^|;)%s="?%s"?(;|$)' % (re.escape(field), re.escape(str(val))))
 
 
 def service_field(product: str, service: str):

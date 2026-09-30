@@ -920,6 +920,10 @@ class hawkBackend(TextQueryBackend):
         if norm_key == "result" and isinstance(value, str) and not is_regex:
             # directoryAudits result values are lower-case success / failure / clientError
             return norm_key, {"success": "success", "failure": "failure"}.get(value.lower(), value), False
+        if norm_key == "targetResourceType" and isinstance(value, str) and not is_regex:
+            # Graph spells types without spaces (ServicePrincipal) and the collector comma-joins
+            # the distinct types of all target resources.
+            return norm_key, "(^|,)%s(,|$)" % re.escape(value.replace(" ", "")), True
         return norm_key, value, is_regex
 
     def _normalize_hash_field(self, norm_key: str, value: Any) -> tuple[str, Any]:

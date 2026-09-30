@@ -1,3 +1,5 @@
+import re
+
 from sigma.backends.hawk import hawkBackend
 from sigma.collection import SigmaCollection
 from sigma.pipelines.hawk import hawk_pipeline
@@ -150,6 +152,58 @@ detection:
     assert leaves["result"]["args"]["str"]["value"] == "success"
     assert "modifiedPropertyNewValue" in leaves
     assert leaves["product_source"]["args"]["str"]["value"] == "directoryAudits"
+
+
+def _convert_azure(service: str, detection: str) -> dict:
+    rule = """
+title: T
+id: bbbbbbbb-2222-3333-4444-555555555555
+status: test
+level: high
+logsource:
+    product: azure
+    service: %s
+detection:
+%s
+    condition: selection
+""" % (service, detection)
+    out = hawkBackend(processing_pipeline=hawk_pipeline()).convert(SigmaCollection.from_yaml(rule))
+    return {l["key"]: l for l in _leaves(out[0]["rules"])}
+
+
+def _hawk_match(leaf: dict, emitted: str) -> bool:
+    # hawk-ece PCRE matching is case-insensitive by default
+    return re.search(leaf["args"]["str"]["value"], emitted, re.IGNORECASE) is not None
+
+
+def test_azure_empty_network_location_uses_collector_column() -> None:
+    # Sign-ins by Unknown Devices: the collector emits networkLocationDetails as JSON ('[]').
+    leaves = _convert_azure("signinlogs", """    selection:
+        NetworkLocationDetails: '[]'
+        DeviceDetail.deviceId: ''""")
+    assert "locationCountry" not in leaves
+    assert leaves["networkLocationDetails"]["args"]["str"]["value"] == "[]"
+    assert leaves["deviceId"]["args"]["str"]["value"] == ""
+
+
+def test_azure_admin_consent_matches_named_modified_property() -> None:
+    # End User Consent: IsAdminConsent is a modified property whose Graph newValue is '"False"'.
+    leaf = _convert_azure("auditlogs", """    selection:
+        ConsentContext.IsAdminConsent: 'false'""")["modifiedPropertyPairs"]
+    assert _hawk_match(leaf, 'ConsentContext.IsAdminConsent="False";ConsentContext.IsAppOnly="True"')
+    # a different property holding False must not satisfy the rule
+    assert not _hawk_match(leaf, 'ConsentContext.IsAdminConsent="True";ConsentContext.IsAppOnly="False"')
+
+
+def test_azure_target_type_matches_graph_spelling_in_joined_list() -> None:
+    # Sigma writes 'Service Principal'; Graph sends ServicePrincipal and the collector
+    # comma-joins the distinct target types.
+    leaf = _convert_azure("auditlogs", """    selection:
+        TargetResources.type: 'Service Principal'""")["targetResourceType"]
+    assert _hawk_match(leaf, "ServicePrincipal")
+    assert _hawk_match(leaf, "User,ServicePrincipal")
+    assert not _hawk_match(leaf, "User")
+    assert not _hawk_match(leaf, "ServicePrincipalGroup")
 
 
 def test_m365_threat_management_uses_alert_title_and_drops_eventsource() -> None:
