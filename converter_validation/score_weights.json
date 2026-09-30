@@ -1,0 +1,50 @@
+{
+ "61065c72-5d7d-44ef-bf41-6a36684b545f": {
+  "weight": 5.0,
+  "reason": "manual reduction 2026-09-30: over-sensitive",
+  "source": "portal",
+  "recorded": "2026-09-30",
+  "portal_last_updated": "2026-09-30 15:54:30",
+  "converter_weight": 5.0,
+  "expected_weight": 10.0,
+  "previous_ledger_weight": null,
+  "score_id": 186486,
+  "title": "Elevated System Shell Spawned"
+ },
+ "61d0475c-173f-4844-86f7-f3eebae1c66b": {
+  "weight": 1.0,
+  "reason": "manual reduction 2026-09-30: over-sensitive",
+  "source": "portal",
+  "recorded": "2026-09-30",
+  "portal_last_updated": "2026-09-30 15:08:21",
+  "converter_weight": 5.0,
+  "expected_weight": 5.0,
+  "previous_ledger_weight": null,
+  "score_id": 1806,
+  "title": "Change PowerShell Policies to an Insecure Level - PowerShell"
+ },
+ "79a87aa6-e4bd-42fc-a5bb-5e6fbdcd62f5": {
+  "weight": 5.0,
+  "reason": "manual reduction 2026-09-30: over-sensitive",
+  "source": "portal",
+  "recorded": "2026-09-30",
+  "portal_last_updated": "2026-09-30 15:42:41",
+  "converter_weight": 5.0,
+  "expected_weight": 10.0,
+  "previous_ledger_weight": null,
+  "score_id": 52280,
+  "title": "Msiexec Quiet Installation"
+ },
+ "87e3c4e8-a6a8-4ad9-bb4f-46e7ff99a180": {
+  "weight": 1.0,
+  "reason": "manual reduction 2026-09-30: over-sensitive",
+  "source": "portal",
+  "recorded": "2026-09-30",
+  "portal_last_updated": "2026-09-30 15:08:15",
+  "converter_weight": 5.0,
+  "expected_weight": 5.0,
+  "previous_ledger_weight": null,
+  "score_id": 2136,
+  "title": "Change PowerShell Policies to an Insecure Level"
+ }
+}

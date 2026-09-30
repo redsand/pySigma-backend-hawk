@@ -255,6 +255,27 @@ detection:
     assert "qa" in result["tags"]
 
 
+def test_test_status_gets_no_maturity_bonus() -> None:
+    result = _convert_one(
+        """
+title: Test Status Rule
+id: aaaaaaaa-bbbb-cccc-dddd-ffffffffffff
+status: test
+level: high
+logsource:
+  product: windows
+  category: process_creation
+detection:
+  sel:
+    Image: cmd.exe
+  condition: sel
+"""
+    )
+    # base 5 + high 10; only `stable` earns +5
+    assert result["correlation_action"] == 15.0
+    assert "qa" not in result["tags"]
+
+
 # ── Correlation rule tests ───────────────────────────────────────────────────
 
 _BASE_DETECTION_YAML = """

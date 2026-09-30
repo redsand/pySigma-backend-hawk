@@ -1051,11 +1051,14 @@ class hawkBackend(TextQueryBackend):
         # Keep scoring behavior aligned with legacy sigmac converter.
         score = 5.0
         reasons = ["Scoring:"]
-        if not self._is_experimental(rule):
+        # Only `stable` earns the maturity bonus. SigmaHQ moved most rules from experimental to
+        # `test` in bulk; counting `test` as mature pushed ~1000 production scores up a
+        # notification band (high 15 -> 20) without any change in their false-positive rate.
+        if self._is_stable(rule):
             score += 5.0
-            reasons.append("Status is not experimental (+5)")
+            reasons.append("Status is stable (+5)")
         else:
-            reasons.append("Status is experimental (+0)")
+            reasons.append(f"Status is {str(rule.status or 'unset').lower().split('.')[-1]} (+0)")
         false_positives = rule.falsepositives or []
         if len(false_positives) > 1:
             penalty = 2.0 * len(false_positives)
@@ -1078,6 +1081,9 @@ class hawkBackend(TextQueryBackend):
                 score -= 15.0
                 reasons.append("Informational (-15)")
         return max(score, 0.0), "\n".join(reasons)
+
+    def _is_stable(self, rule: SigmaRule) -> bool:
+        return str(rule.status or "").lower().split(".")[-1] == "stable"
 
     def _is_experimental(self, rule: SigmaRule) -> bool:
         status = str(rule.status or "").lower()

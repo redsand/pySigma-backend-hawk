@@ -7,6 +7,9 @@ Behaviour (verified against hawk-data app.php / query_wrapper.php, 2026-09-25):
   * On update it refreshes filter_name, filter_details, action fields, tactics, technique, tags
     and rules, and leaves enabled/public/group_name alone. So re-pushing a rule that is already
     live keeps its enabled state; a brand-new rule is inserted with enabled=false.
+  * correlation_action IS overwritten by an update, so the weight sent is chosen here:
+    score_weights.json ledger > production's current weight > converter (new rules only).
+    `--reset-weight` makes existing scores take the converter weight (the ledger still wins).
   * tactics must be form-encoded (tactics[0][tactic_id]=...), tags/rules are JSON strings,
     technique is VARCHAR(16), filter_name must not contain double quotes.
 
@@ -47,6 +50,15 @@ def load_converted(path: Path) -> dict:
             rec = json.loads(line)
             out[str(rec["hawk_id"]).lower()] = rec
     return out
+
+
+def pick_weight(hid: str, rec: dict, prev: dict, ledger: dict, reset: bool) -> tuple[float, str]:
+    """Weight precedence: local ledger > production (existing score) > converter (new score)."""
+    if hid in ledger:
+        return float(ledger[hid]["weight"]), "ledger"
+    if prev and not reset:
+        return float(prev.get("correlation_action") or 0.0), "live"
+    return float(rec.get("correlation_action") or 0.0), "converter"
 
 
 def to_form(rec: dict, group: str, date_added: str = "") -> dict:
@@ -103,6 +115,8 @@ def main() -> int:
     ap.add_argument("--execute", action="store_true")
     ap.add_argument("--extra-tag", action="append", default=[], help="add a tag to every pushed score (repeatable)")
     ap.add_argument("--verify", action="store_true", help="after pushing, re-read /scores and confirm each id")
+    ap.add_argument("--reset-weight", action="store_true",
+                    help="existing scores take the converter weight instead of keeping production's (ledger still wins)")
     args = ap.parse_args()
 
     conv = load_converted(Path(args.converted))
@@ -125,7 +139,8 @@ def main() -> int:
 
     session = requests.Session()
     session.headers["Authorization"] = "Bearer " + api_key()
-    live_before = fetch_live(session) if (args.execute or args.verify) else {}
+    live_before = fetch_live(session)
+    ledger = json.loads((HERE / "score_weights.json").read_text(encoding="utf-8")) if (HERE / "score_weights.json").exists() else {}
 
     for hid in ids:
         rec = conv[hid]
@@ -134,6 +149,9 @@ def main() -> int:
         if args.extra_tag:
             rec = dict(rec)
             rec["tags"] = list(rec.get("tags") or []) + [t for t in args.extra_tag if t not in (rec.get("tags") or [])]
+        weight, weight_source = pick_weight(hid, rec, prev, ledger, args.reset_weight)
+        rec = dict(rec)
+        rec["correlation_action"] = weight
         form = to_form(rec, args.group, prev_date if prev_date and not prev_date.startswith("1970") else "")
         item = {
             "hawk_id": form["hawk_id"],
@@ -141,6 +159,8 @@ def main() -> int:
             "source": rec.get("_source"),
             "level": rec.get("_level"),
             "score": form["correlation_action"],
+            "weight_source": weight_source,
+            "weight_before": prev.get("correlation_action") if prev else None,
             "existed_before": hid in live_before,
             "enabled_before": bool(live_before.get(hid, {}).get("enabled")) if hid in live_before else None,
         }
@@ -148,7 +168,7 @@ def main() -> int:
             item["result"] = push(session, form)
             time.sleep(0.2)
         manifest["items"].append(item)
-        print(f"{'PUSH' if args.execute else 'DRY '} {form['hawk_id']} {str(rec.get('filter_name'))[:60]!r} score={form['correlation_action']} existed={item['existed_before']}"
+        print(f"{'PUSH' if args.execute else 'DRY '} {form['hawk_id']} {str(rec.get('filter_name'))[:60]!r} score={form['correlation_action']}({weight_source}) existed={item['existed_before']}"
               + (f" -> {item['result']['status']} {item['result']['details'][:60]}" if args.execute else ""))
 
     if args.verify and (args.execute or ids):
