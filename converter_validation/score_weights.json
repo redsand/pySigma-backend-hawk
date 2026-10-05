@@ -1,4 +1,31 @@
 {
+ "0c79148b-118e-472b-bdb7-9b57b444cc19": {
+  "weight": 10.0,
+  "reason": "2026-10-05: weight>=15 and >=1 hit/h on its own over 72h; needs corroboration to notify",
+  "source": "local",
+  "recorded": "2026-10-05",
+  "previous_weight": 20.0,
+  "score_id": 2074,
+  "title": "Suspicious File Download Using Office Application"
+ },
+ "3a6586ad-127a-4d3b-a677-1e6eacdf8fde": {
+  "weight": 10.0,
+  "reason": "2026-10-05: weight>=15 and >=1 hit/h on its own over 72h; needs corroboration to notify",
+  "source": "local",
+  "recorded": "2026-10-05",
+  "previous_weight": 16.0,
+  "score_id": 1957,
+  "title": "Windows Shell/Scripting Processes Spawning Suspicious Programs"
+ },
+ "5aad0995-46ab-41bd-a9ff-724f41114971": {
+  "weight": 10.0,
+  "reason": "2026-10-05: weight>=15 and >=1 hit/h on its own over 72h; needs corroboration to notify",
+  "source": "local",
+  "recorded": "2026-10-05",
+  "previous_weight": 20.0,
+  "score_id": 2409,
+  "title": "Esentutl Volume Shadow Copy Service Keys"
+ },
  "61065c72-5d7d-44ef-bf41-6a36684b545f": {
   "weight": 5.0,
   "reason": "manual reduction 2026-09-30: over-sensitive",
@@ -23,6 +50,24 @@
   "score_id": 1806,
   "title": "Change PowerShell Policies to an Insecure Level - PowerShell"
  },
+ "7195a772-4b3f-43a4-a210-6a003d65caa1": {
+  "weight": 5.0,
+  "reason": "2026-10-05: weight>=15 and >=1 hit/h on its own over 72h; needs corroboration to notify",
+  "source": "local",
+  "recorded": "2026-10-05",
+  "previous_weight": 15.0,
+  "score_id": 1307,
+  "title": "Suspicious User Agent"
+ },
+ "73921b9c-cafd-4446-b0c6-fdb0ace42bc0": {
+  "weight": 10.0,
+  "reason": "2026-10-05: weight>=15 and >=1 hit/h on its own over 72h; needs corroboration to notify",
+  "source": "local",
+  "recorded": "2026-10-05",
+  "previous_weight": 15.0,
+  "score_id": 186574,
+  "title": "Windows Credential Guard Disabled - Registry"
+ },
  "79a87aa6-e4bd-42fc-a5bb-5e6fbdcd62f5": {
   "weight": 5.0,
   "reason": "manual reduction 2026-09-30: over-sensitive",
@@ -46,5 +91,59 @@
   "previous_ledger_weight": null,
   "score_id": 2136,
   "title": "Change PowerShell Policies to an Insecure Level"
+ },
+ "8a582fe2-0882-4b89-a82a-da6b2dc32937": {
+  "weight": 10.0,
+  "reason": "2026-10-05: weight>=15 and >=1 hit/h on its own over 72h; needs corroboration to notify",
+  "source": "local",
+  "recorded": "2026-10-05",
+  "previous_weight": 20.0,
+  "score_id": 2135,
+  "title": "Suspicious WmiPrvSE Child Process"
+ },
+ "a6a39bdb-935c-4f0a-ab77-35f4bbf44d33": {
+  "weight": 10.0,
+  "reason": "2026-10-05: weight>=15 and >=1 hit/h on its own over 72h; needs corroboration to notify",
+  "source": "local",
+  "recorded": "2026-10-05",
+  "previous_weight": 15.0,
+  "score_id": 2279,
+  "title": "Suspicious Script Execution From Temp Folder"
+ },
+ "c0b40568-b1e9-4b03-8d6c-b096da6da9ab": {
+  "weight": 10.0,
+  "reason": "2026-10-05: weight>=15 and >=1 hit/h on its own over 72h; needs corroboration to notify",
+  "source": "local",
+  "recorded": "2026-10-05",
+  "previous_weight": 15.0,
+  "score_id": 172706,
+  "title": "Suspicious AgentExecutor PowerShell Execution"
+ },
+ "d65f37da-a26a-48f8-8159-3dde96680ad2": {
+  "weight": 10.0,
+  "reason": "2026-10-05: weight>=15 and >=1 hit/h on its own over 72h; needs corroboration to notify",
+  "source": "local",
+  "recorded": "2026-10-05",
+  "previous_weight": 15.0,
+  "score_id": 177319,
+  "title": "Process Execution Error In JVM Based Application"
+ },
+ "d7bcd677-645d-4691-a8d4-7a5602b780d1": {
+  "weight": 5.0,
+  "reason": "2026-10-05: weight>=15 and >=1 hit/h on its own over 72h; needs corroboration to notify",
+  "source": "local",
+  "recorded": "2026-10-05",
+  "previous_weight": 16.0,
+  "score_id": 2214,
+  "title": "Potential PowerShell Command Line Obfuscation"
+ },
+ "f3a98ce4-6164-4dd4-867c-4d83de7eca51": {
+  "weight": 10.0,
+  "reason": "2026-10-05: weight>=15 and >=1 hit/h on its own over 72h; needs corroboration to notify",
+  "source": "local",
+  "recorded": "2026-10-05",
+  "previous_weight": 15.0,
+  "score_id": 173492,
+  "title": "Powershell Token Obfuscation - Powershell"
  }
 }
