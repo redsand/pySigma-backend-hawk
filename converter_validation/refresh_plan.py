@@ -31,8 +31,16 @@ def leaves(rules):
     return out
 
 
+def _norm_args(a):
+    # the portal editor saves str.regex as the string "true"; same logic as the boolean
+    a = json.loads(json.dumps(a or {}))
+    if isinstance(a.get('str'), dict) and a['str'].get('regex') in ('true', True):
+        a['str']['regex'] = True
+    return a
+
+
 def sig(ls):
-    return sorted(json.dumps([l.get('key'), l.get('args')], sort_keys=True) for l in ls)
+    return sorted(json.dumps([l.get('key'), _norm_args(l.get('args'))], sort_keys=True) for l in ls)
 
 
 rows = []
