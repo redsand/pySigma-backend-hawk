@@ -8,6 +8,11 @@ Usage:
     python disable_scores.py --hawk-ids-file reports/batch_000_deprecated.txt            # dry run
     python disable_scores.py --hawk-ids-file reports/batch_000_deprecated.txt --execute
     python disable_scores.py --score-ids 123,456 --enable --execute
+    python disable_scores.py --non-public-enabled --make-public            # dry run
+
+--make-public sets public=true and leaves enabled as-is. hawk-ece honors the flag
+only from 867eb1d3; before it every score was loaded as public, so non-public
+root scores must be made public BEFORE that engine build rolls out.
 """
 import argparse
 import datetime
@@ -30,7 +35,7 @@ def api_key() -> str:
     raise SystemExit("HAWK_API_KEY missing")
 
 
-def row_to_form(row: dict, enabled: bool) -> dict:
+def row_to_form(row: dict, enabled: bool, public=None) -> dict:
     form = {
         "hawk_id": row.get("hawk_id") or "",
         "group_name": row.get("group_name") or ".",
@@ -39,7 +44,7 @@ def row_to_form(row: dict, enabled: bool) -> dict:
         "actions_category_name": row.get("actions_category_name") or "Add (+)",
         "correlation_action": str(row.get("correlation_action") or 0),
         "enabled": "true" if enabled else "false",
-        "public": "true" if row.get("public") else "false",
+        "public": "true" if (row.get("public") if public is None else public) else "false",
         "references": row.get("references") or "",
         "comments": row.get("comments") or "",
         "technique": (row.get("technique") or "")[:16],
@@ -64,6 +69,10 @@ def main() -> int:
     ap.add_argument("--hawk-ids-file")
     ap.add_argument("--score-ids")
     ap.add_argument("--enable", action="store_true", help="enable instead of disable")
+    ap.add_argument("--make-public", action="store_true", help="set public=true; enabled unchanged")
+    ap.add_argument("--non-public-enabled", action="store_true",
+                    help="target every enabled ROOT-group ('.') score that is not public; "
+                         "tenant-group scores (e.g. hunt) are private on purpose")
     ap.add_argument("--execute", action="store_true")
     ap.add_argument("--manifest-dir", default=str(HERE / "reports" / "batches"))
     args = ap.parse_args()
@@ -86,14 +95,24 @@ def main() -> int:
         for sid in args.score_ids.split(","):
             if sid.strip() in by_id:
                 targets.append(by_id[sid.strip()])
+    if args.non_public_enabled:
+        targets += [r for r in live if r.get("enabled") and not r.get("public")
+                    and (r.get("group_name") or ".") == "."]
     want = bool(args.enable)
-    targets = [t for t in targets if bool(t.get("enabled")) != want]
+    if args.make_public:
+        targets = [t for t in targets if not t.get("public")]
+        action = "make_public"
+    else:
+        targets = [t for t in targets if bool(t.get("enabled")) != want]
+        action = "enable" if want else "disable"
     stamp = datetime.datetime.now(datetime.UTC).strftime("%Y%m%dT%H%M%SZ")
-    manifest = {"batch": stamp, "action": "enable" if want else "disable", "execute": args.execute, "items": []}
+    manifest = {"batch": stamp, "action": action, "execute": args.execute, "items": []}
     for row in targets:
-        item = {"score_id": row.get("score_id"), "hawk_id": row.get("hawk_id"), "title": row.get("filter_name"), "enabled_before": bool(row.get("enabled"))}
+        item = {"score_id": row.get("score_id"), "hawk_id": row.get("hawk_id"), "title": row.get("filter_name"), "enabled_before": bool(row.get("enabled")), "public_before": bool(row.get("public"))}
         if args.execute:
-            r = s.post(BASE + f"scores/{row['score_id']}", data=row_to_form(row, want), timeout=120, verify=False)
+            form = (row_to_form(row, bool(row.get("enabled")), public=True) if args.make_public
+                    else row_to_form(row, want))
+            r = s.post(BASE + f"scores/{row['score_id']}", data=form, timeout=120, verify=False)
             try:
                 j = r.json()
             except Exception:  # noqa: BLE001
