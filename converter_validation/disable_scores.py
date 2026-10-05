@@ -73,6 +73,7 @@ def main() -> int:
     ap.add_argument("--non-public-enabled", action="store_true",
                     help="target every enabled ROOT-group ('.') score that is not public; "
                          "tenant-group scores (e.g. hunt) are private on purpose")
+    ap.add_argument("--allow-loud", action="store_true", help="also enable scores marked (LOUD) by mark_loud.py")
     ap.add_argument("--execute", action="store_true")
     ap.add_argument("--manifest-dir", default=str(HERE / "reports" / "batches"))
     args = ap.parse_args()
@@ -105,6 +106,11 @@ def main() -> int:
     else:
         targets = [t for t in targets if bool(t.get("enabled")) != want]
         action = "enable" if want else "disable"
+    if want and not args.allow_loud:
+        loud = [t for t in targets if "(LOUD)" in str(t.get("filter_name") or "")]
+        for t in loud:
+            print(f"SKIP score_id={t['score_id']} {str(t.get('filter_name'))[:70]!r}: marked LOUD (use --allow-loud)")
+        targets = [t for t in targets if t not in loud]
     stamp = datetime.datetime.now(datetime.UTC).strftime("%Y%m%dT%H%M%SZ")
     manifest = {"batch": stamp, "action": action, "execute": args.execute, "items": []}
     for row in targets:

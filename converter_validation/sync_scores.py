@@ -153,6 +153,9 @@ def main() -> int:
         rec = dict(rec)
         rec["correlation_action"] = weight
         form = to_form(rec, args.group, prev_date if prev_date and not prev_date.startswith("1970") else "")
+        if "(LOUD)" in str(prev.get("filter_name") or "") and "(LOUD)" not in form["filter_name"]:
+            # disabled for noise (mark_loud.py): the title says why, a refresh must not drop it
+            form["filter_name"] = form["filter_name"][:255 - len(" (LOUD)")] + " (LOUD)"
         item = {
             "hawk_id": form["hawk_id"],
             "title": rec.get("filter_name"),

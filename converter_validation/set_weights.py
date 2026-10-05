@@ -1,7 +1,8 @@
 """Change production score weights WITHOUT touching their logic, and record them in the ledger.
 
-Posts each score's own live row back to POST /scores/<score_id> with only correlation_action
-changed (enabled, rules, dates kept), the same path disable_scores.py uses. Safe for held scores,
+Posts each score's own live row back to POST /scores/<score_id> with correlation_action changed
+and a dated "WEIGHT <date>: a -> b (reason)" note prepended to its comments (enabled, rules,
+dates kept), the same path disable_scores.py uses. Safe for held scores,
 whose logic a sync_scores.py push would replace. Every change is written to score_weights.json
 so later syncs keep it.
 
@@ -45,7 +46,9 @@ def main() -> int:
         print(f"{'SET ' if args.execute else 'DRY '} {sid:>7} {before} -> {weight}  {str(row.get('filter_name'))[:60]}")
         if not args.execute:
             continue
-        form = row_to_form(dict(row, correlation_action=weight), bool(row.get("enabled")))
+        old_note = str(row.get("comments") or "").strip()
+        new_note = f"WEIGHT {today}: {before:g} -> {weight:g} ({args.reason})" + ("\n" + old_note if old_note else "")
+        form = row_to_form(dict(row, correlation_action=weight, comments=new_note), bool(row.get("enabled")))
         r = session.post(BASE + f"scores/{sid}", data=form, timeout=120, verify=False)
         status = (r.json() if r.headers.get("content-type", "").startswith("application/json") else {}).get("status")
         print(f"        -> {r.status_code} {status}")
