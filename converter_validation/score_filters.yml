@@ -116,6 +116,29 @@ filters:
         match: {correlation_username: {regex: '^(hawkscan|bhoundsa)$'}}
         evidence: "610 of 1,468 hits/24h 2026-10-06"
 
+  - score: d7bcd677-645d-4691-a8d4-7a5602b780d1      # 2214 Potential PowerShell Command Line Obfuscation
+    exclusions:
+      - name: MSI product-code helper Convert-GuidToCompressedGuid
+        tier: generic
+        match: {command: {contains: 'function Convert-GuidToCompressedGuid'}}
+        evidence: "294 of 1,000 sampled, 72h 2026-10-06"
+      - name: Windows inbox IME compatibility check (CompatTelRunner)
+        tier: generic
+        match: {command: {contains: '$InboxIMEs = '}}
+        evidence: "264 of 1,000 sampled"
+      - name: HUNT local-group inventory script
+        tier: customer
+        customer: HUNT
+        match: {command: {contains: 'Get-LocalGroup | Select-Object Name, Domain, SID'}}
+        evidence: "91 of 1,000 sampled"
+
+  - score: 73921b9c-cafd-4446-b0c6-fdb0ace42bc0      # 186574 Windows Credential Guard Disabled - Registry
+    exclusions:
+      - name: Policy / MDM application of LsaCfgFlags (Group Policy via svchost, Intune omadmclient)
+        tier: generic
+        match: {image: {regex: '\\(svchost|omadmclient)\.exe$'}}
+        evidence: "332 of 335 sampled (svchost 318, omadmclient 16); reg.exe / powershell writes still alert"
+
 # Not filters yet - need a logic check first:
 #   2214 PowerShell Command Line Obfuscation (SYSTEM jobs from cmd.exe on epm/application4/7/powerbi-gateway)
 #   2409 Esentutl VSS Keys (VSS\Diag writes by SYSTEM; esentutl image condition may be missing)

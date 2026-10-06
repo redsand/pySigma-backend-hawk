@@ -45,11 +45,11 @@
   "title": "Alternate PowerShell Hosts Pipe"
  },
  "5aad0995-46ab-41bd-a9ff-724f41114971": {
-  "weight": 10.0,
-  "reason": "2026-10-05: weight>=15 and >=1 hit/h on its own over 72h; needs corroboration to notify",
+  "weight": 3.0,
+  "reason": "2026-10-06: fires on esentutl /vss writing Services\\VSS\\Diag keys (Dell TechHub SRUDB copy); registry side effect with no command line - 1909 covers the esentutl command precisely",
   "source": "local",
-  "recorded": "2026-10-05",
-  "previous_weight": 20.0,
+  "recorded": "2026-10-06",
+  "previous_weight": 10.0,
   "score_id": 2409,
   "title": "Esentutl Volume Shadow Copy Service Keys"
  },
