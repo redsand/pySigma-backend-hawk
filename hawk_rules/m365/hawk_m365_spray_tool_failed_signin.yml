@@ -1,0 +1,39 @@
+title: HAWK - Entra ID Failed Sign-In From Password-Spray Tooling
+id: 7c26981b-492d-46ef-a7eb-719cd84e7a43
+status: test
+description: |
+    A failed Entra ID sign-in (bad password or Smart Lockout) through the Azure AD PowerShell or Azure CLI
+    first-party client with a bare "Mozilla/5.0" user agent. Password-spray tools (MSOLSpray, TeamFiltration
+    and similar) authenticate through these public client ids with a generic user agent; the real modules do
+    not send a bare "Mozilla/5.0". One event per attempt, each carrying the source address, so a SOAR playbook
+    can block every rotating proxy IP as it appears. Seen 2026-10-06: 110 residential/mobile IPs, one user per
+    IP, 38 accounts, ~8,500 lockouts in 14 hours, no success.
+references:
+    - https://github.com/dafthack/MSOLSpray
+    - https://github.com/Flangvik/TeamFiltration
+    - https://learn.microsoft.com/en-us/entra/identity-platform/reference-error-codes
+author: HAWK Defense
+date: 2026-10-06
+tags:
+    - attack.credential_access
+    - attack.t1110.003
+logsource:
+    product: azure
+    service: signinlogs
+detection:
+    selection_failure:
+        ResultType:
+            - 50126   # invalid username or password
+            - 50053   # account locked (Smart Lockout)
+            - 50055   # password expired
+            - 50056   # invalid or null password
+    selection_client:
+        AppId:
+            - '1b730954-1685-4b74-9bfd-dac224a7b894'   # Azure Active Directory PowerShell
+            - '04b07795-8ddb-461a-bbee-02f9e1bf7b46'   # Microsoft Azure CLI
+    selection_agent:
+        UserAgent: 'Mozilla/5.0'
+    condition: all of selection_*
+falsepositives:
+    - Custom scripts that call these public clients with a minimal user agent and a wrong password
+level: high
