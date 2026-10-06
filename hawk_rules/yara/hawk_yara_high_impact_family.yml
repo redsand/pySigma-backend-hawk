@@ -22,6 +22,7 @@ detection:
         filename|contains:
             - '\SentinelOne\'
             - '\HAWK\vTTAC\'
+            - '\ProgramData\HAWK\'
             - '\Windows Defender\'
             - '\Microsoft\Windows Defender\'
     condition: selection and not 1 of filter_main_*

@@ -31,6 +31,7 @@ detection:
         filename|contains:
             - '\SentinelOne\'
             - '\HAWK\vTTAC\'
+            - '\ProgramData\HAWK\'
             - '\Windows Defender\'
             - '\Microsoft\Windows Defender\'
     filter_main_msix_packages:

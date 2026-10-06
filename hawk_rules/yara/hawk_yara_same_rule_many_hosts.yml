@@ -20,6 +20,12 @@ detection:
             - 'C:\Windows\'
     filter_main_codeintegrity:
         rule_name|startswith: 'CodeIntegrity_'
+    filter_main_security_vendors:
+        filename|contains:
+            - '\SentinelOne\'
+            - '\HAWK\vTTAC\'
+            - '\ProgramData\HAWK\'
+            - '\Windows Defender\'
     filter_main_msix_packages:
         # MSIX packages are ZIPs; Microsoft Store apps (new Outlook) cache them per user
         filename|contains: '\AppData\Local\Packages\Microsoft.'

@@ -24,6 +24,7 @@ POSITIVES = {
 NEGATIVES = [  # benign shapes seen 2026-10-05 must not match
     {"rule_name": "SIGNATURE_BASE_Reflectiveloader", "filename": r"C:\Program Files\SentinelOne\Sentinel Agent 26.1.2.177\InProcessClient64.dll", "scan_context": "fim_change"},
     {"rule_name": "MALPEDIA_Win_Snake_Disk_Auto", "filename": r"C:\Program Files (x86)\Adobe\Acrobat DC\Acrobat\acrotray.exe", "scan_context": "process_create"},
+    {"rule_name": "SIGNATURE_BASE_Suspicious_Powershell_Webdownload_1", "filename": r"C:\ProgramData\HAWK\Auto_Update.bat", "scan_context": "fim_change"},
     {"rule_name": "CodeIntegrity_vulkan-1.dll", "filename": r"C:\Users\bob\AppData\Local\x\vulkan-1.dll", "scan_context": "code_integrity"},
 ]
 
