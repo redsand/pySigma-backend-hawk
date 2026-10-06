@@ -17,6 +17,15 @@
   "score_id": 1957,
   "title": "Windows Shell/Scripting Processes Spawning Suspicious Programs"
  },
+ "4f77e1d7-3982-4ee0-8489-abf2d6b75284": {
+  "weight": 3.0,
+  "reason": "2026-10-06: ~1,280 hits/h (92k/72h), 111+ users, mostly unmanaged iOS/BYOD; device non-compliance alone is posture, not compromise",
+  "source": "local",
+  "recorded": "2026-10-06",
+  "previous_weight": 15.0,
+  "score_id": 152117,
+  "title": "Sign-ins from Non-Compliant Devices"
+ },
  "58cb02d5-78ce-4692-b3e1-dce850aae41a": {
   "weight": 5.0,
   "reason": "2026-10-06: Sigma refresh makes it noisier (local_eval on real events); capped at 5 so it adds context but cannot notify alone",
