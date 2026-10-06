@@ -33,11 +33,21 @@ class Unsupported(Exception):
 _re_cache = {}
 
 
+def _search_form(pattern):
+    """Leading/trailing `.*` are no-ops for an unanchored search, but they make Python's re
+    (no backtracking limit, unlike the engine's PCRE) go catastrophic on long values."""
+    while pattern.startswith(".*") and not pattern.startswith(".*?"):
+        pattern = pattern[2:]
+    while pattern.endswith(".*") and not pattern.endswith(r"\.*"):
+        pattern = pattern[:-2]
+    return pattern
+
+
 def _rx(pattern, case):
     k = (pattern, case)
     if k not in _re_cache:
         try:
-            _re_cache[k] = re.compile(pattern, 0 if case else re.IGNORECASE)
+            _re_cache[k] = re.compile(_search_form(pattern), 0 if case else re.IGNORECASE)
         except re.error as e:
             raise Unsupported(f"regex: {e}") from e
     return _re_cache[k]
