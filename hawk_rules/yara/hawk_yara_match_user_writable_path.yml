@@ -18,7 +18,7 @@ logsource:
     service: yara
 detection:
     selection:
-        file_path|contains:
+        filename|contains:
             - '\Users\'
             - '\AppData\'
             - '\Temp\'
@@ -28,15 +28,15 @@ detection:
         # code-integrity events reuse the YARA channel with synthetic rule names
         rule_name|startswith: 'CodeIntegrity_'
     filter_main_security_vendors:
-        file_path|contains:
+        filename|contains:
             - '\SentinelOne\'
             - '\HAWK\vTTAC\'
             - '\Windows Defender\'
             - '\Microsoft\Windows Defender\'
     filter_main_msix_packages:
         # MSIX packages are ZIPs; Microsoft Store apps (new Outlook) cache them per user
-        file_path|contains: '\AppData\Local\Packages\Microsoft.'
-        file_path|endswith: '.msix'
+        filename|contains: '\AppData\Local\Packages\Microsoft.'
+        filename|endswith: '.msix'
     condition: selection and not 1 of filter_main_*
 falsepositives:
     - Software installed per-user (Teams, Zoom, Chrome per-user installs) that trips a broad YARA rule

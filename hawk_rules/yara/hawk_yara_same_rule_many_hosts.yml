@@ -14,7 +14,7 @@ detection:
     selection:
         rule_name|re: '.'
     filter_main_install_dirs:
-        file_path|startswith:
+        filename|startswith:
             - 'C:\Program Files\'
             - 'C:\Program Files (x86)\'
             - 'C:\Windows\'
@@ -22,8 +22,8 @@ detection:
         rule_name|startswith: 'CodeIntegrity_'
     filter_main_msix_packages:
         # MSIX packages are ZIPs; Microsoft Store apps (new Outlook) cache them per user
-        file_path|contains: '\AppData\Local\Packages\Microsoft.'
-        file_path|endswith: '.msix'
+        filename|contains: '\AppData\Local\Packages\Microsoft.'
+        filename|endswith: '.msix'
     condition: selection and not 1 of filter_main_*
 level: informational
 name: hawk_yara_outside_install_dirs

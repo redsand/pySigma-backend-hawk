@@ -19,7 +19,7 @@ detection:
     selection:
         rule_name|re: '(?i)(ransom|webshell|web_shell|cobalt_?strike|beacon|sliver|mimikatz|meterpreter|brute_?ratel|havoc|lockbit|blackcat|alphv|conti|ryuk|akira)'
     filter_main_security_vendors:
-        file_path|contains:
+        filename|contains:
             - '\SentinelOne\'
             - '\HAWK\vTTAC\'
             - '\Windows Defender\'

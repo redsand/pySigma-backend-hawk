@@ -16,7 +16,7 @@ detection:
     selection:
         scan_context: 'process_create'
     filter_main_install_dirs:
-        file_path|startswith:
+        filename|startswith:
             - 'C:\Program Files\'
             - 'C:\Program Files (x86)\'
             - 'C:\Windows\'
