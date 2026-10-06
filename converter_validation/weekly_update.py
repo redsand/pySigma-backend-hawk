@@ -99,12 +99,8 @@ def main() -> int:
             headers={"Authorization": "Bearer " + api_key()}, timeout=900, verify=False).json()["results"] if x.get("hawk_id")}
     new = [c for h, c in conv.items() if h not in live and not c["_source"].startswith("deprecated")]
     dep = [h for h, c in conv.items() if c["_source"].startswith("deprecated") and live.get(h, {}).get("enabled")]
-    (out / "new.txt").write_text("
-".join(c["hawk_id"].lower() for c in new) + "
-", encoding="utf-8")
-    (out / "refresh.txt").write_text("
-".join(r["hawk_id"] for r in refresh) + "
-", encoding="utf-8")
+    (out / "new.txt").write_text("\n".join(c["hawk_id"].lower() for c in new) + "\n", encoding="utf-8")
+    (out / "refresh.txt").write_text("\n".join(r["hawk_id"] for r in refresh) + "\n", encoding="utf-8")
     (out / "push.txt").write_text("\n".join([c["hawk_id"].lower() for c in new] + [r["hawk_id"] for r in refresh]) + "\n", encoding="utf-8")
     (out / "deprecated_enabled.txt").write_text("\n".join(dep) + "\n", encoding="utf-8")
     md += ["## To push (push.txt = new.txt + refresh.txt)", f"{len(new)} new rules (go in disabled), {len(refresh)} refreshes "
@@ -143,6 +139,13 @@ def main() -> int:
     for r in sorted(loud, key=lambda r: -r["events"]):
         md.append(f"- {r['events'] / args.hours:.1f}/h w={r['weight']:g} {r['score_id']} {r['title']}{'' if r['sigma'] else ' (not Sigma)'}")
     md.append("")
+
+    # what actually reaches case territory: final event weight of the loud scores' events
+    cw = run([sys.executable, "case_weight.py", "--from-fired", str(out / "fired.json"),
+              "--min-weight", "15", "--min-per-hour", "1", "--hours", str(min(args.hours, 24))], timeout=7200)
+    md += ["## Case sources: events at final weight >= 20 (after Subtract scores), last 24h",
+           "A score that fires a lot but whose events end below 20 is suppressed elsewhere and is not a case source.",
+           "```", cw.strip(), "```", ""]
 
     (out / "summary.md").write_text("\n".join(md), encoding="utf-8")
     print(f"\nreport: {out / 'summary.md'}")
