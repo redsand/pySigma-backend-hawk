@@ -1,4 +1,13 @@
 {
+ "01d2e2a1-5f09-44f7-9fc1-24faa7479b6d": {
+  "weight": 5.0,
+  "reason": "2026-10-06: ~28/h, svchost-from-svchost on Security 4688 only (machine accounts); weak signal on 4688 data",
+  "source": "local",
+  "recorded": "2026-10-06",
+  "previous_weight": 15.0,
+  "score_id": 2046,
+  "title": "Uncommon Svchost Parent Process"
+ },
  "0c79148b-118e-472b-bdb7-9b57b444cc19": {
   "weight": 10.0,
   "reason": "2026-10-05: weight>=15 and >=1 hit/h on its own over 72h; needs corroboration to notify",
