@@ -1,0 +1,52 @@
+title: HAWK - Same YARA Rule Matching Outside Install Directories On Several Hosts
+id: a22068d9-798f-4655-aaca-ccb580bf9da4
+status: test
+description: |
+    Base for a spread correlation: YARA matches outside Program Files / Windows, excluding the security agents'
+    files and code-integrity events. The correlation rule below fires when one YARA rule matches on 3 or more
+    hosts within an hour, which is how a dropped payload spreading through a tenant looks.
+author: HAWK Defense
+date: 2026-10-05
+logsource:
+    product: hawk
+    service: yara
+detection:
+    selection:
+        rule_name|re: '.'
+    filter_main_install_dirs:
+        file_path|startswith:
+            - 'C:\Program Files\'
+            - 'C:\Program Files (x86)\'
+            - 'C:\Windows\'
+    filter_main_codeintegrity:
+        rule_name|startswith: 'CodeIntegrity_'
+    filter_main_msix_packages:
+        # MSIX packages are ZIPs; Microsoft Store apps (new Outlook) cache them per user
+        file_path|contains: '\AppData\Local\Packages\Microsoft.'
+        file_path|endswith: '.msix'
+    condition: selection and not 1 of filter_main_*
+level: informational
+name: hawk_yara_outside_install_dirs
+---
+title: HAWK - YARA Rule Matched On 3 Or More Hosts Within An Hour
+id: 17d4e717-1423-4c74-8a40-bf037e38c154
+status: test
+description: One YARA rule matched files outside install directories on three or more distinct hosts within one hour.
+author: HAWK Defense
+date: 2026-10-05
+tags:
+    - attack.lateral_movement
+    - attack.t1570
+correlation:
+    type: value_count
+    rules:
+        - hawk_yara_outside_install_dirs
+    group-by:
+        - rule_name
+    timespan: 1h
+    condition:
+        field: resource_name
+        gte: 3
+falsepositives:
+    - A software rollout that trips a broad YARA rule on every machine at once
+level: high

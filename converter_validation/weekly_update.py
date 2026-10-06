@@ -69,7 +69,9 @@ def main() -> int:
     conv_path = HERE / "reports" / "converted.jsonl"
     if conv_path.exists():
         conv_path.replace(HERE / "reports" / f"converted_before_{day}.jsonl")
-    print(run([sys.executable, "convert_corpus.py", str(SIGMA), "--dirs", DIRS]).strip().splitlines()[-1])
+    print(run([sys.executable, "convert_corpus.py", str(SIGMA), "--dirs", DIRS,
+               "--extra-root", str(HERE.parent / "hawk_rules")]).strip().splitlines()[-1])
+    print(run([sys.executable, "test_hawk_rules.py"]).strip())
     conv = {json.loads(l)["hawk_id"].lower(): json.loads(l) for l in conv_path.read_text(encoding="utf-8").splitlines() if l.strip()}
     errs = HERE / "reports" / "converted.jsonl.errors.json"
     nerr = len(json.loads(errs.read_text(encoding="utf-8"))) if errs.exists() else 0

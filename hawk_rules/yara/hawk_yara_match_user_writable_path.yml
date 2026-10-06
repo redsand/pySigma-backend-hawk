@@ -1,0 +1,43 @@
+title: HAWK - YARA Match On File In User-Writable Location
+id: e4f8ca92-403d-41dd-8358-461983719ee6
+status: test
+description: |
+    The vTTAC agent's YARA scanner matched a file under a user-writable location (user profile, AppData, Temp,
+    ProgramData, Public, Downloads). Malware is dropped and run from these paths; signed vendor software that
+    trips broad YARA rules lives under Program Files / Windows instead, so this split keeps the signal and drops
+    the vendor false positives seen on 2026-10-05 (SentinelOne, Edge MSIX, Adobe).
+references:
+    - https://yarahq.github.io/
+author: HAWK Defense
+date: 2026-10-05
+tags:
+    - attack.execution
+    - attack.t1204
+logsource:
+    product: hawk
+    service: yara
+detection:
+    selection:
+        file_path|contains:
+            - '\Users\'
+            - '\AppData\'
+            - '\Temp\'
+            - '\ProgramData\'
+            - '\Downloads\'
+    filter_main_codeintegrity:
+        # code-integrity events reuse the YARA channel with synthetic rule names
+        rule_name|startswith: 'CodeIntegrity_'
+    filter_main_security_vendors:
+        file_path|contains:
+            - '\SentinelOne\'
+            - '\HAWK\vTTAC\'
+            - '\Windows Defender\'
+            - '\Microsoft\Windows Defender\'
+    filter_main_msix_packages:
+        # MSIX packages are ZIPs; Microsoft Store apps (new Outlook) cache them per user
+        file_path|contains: '\AppData\Local\Packages\Microsoft.'
+        file_path|endswith: '.msix'
+    condition: selection and not 1 of filter_main_*
+falsepositives:
+    - Software installed per-user (Teams, Zoom, Chrome per-user installs) that trips a broad YARA rule
+level: high

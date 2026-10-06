@@ -1,0 +1,30 @@
+title: HAWK - YARA Match For Ransomware, Webshell Or Post-Exploitation Tooling
+id: af032a17-2b22-4cd4-bb06-bc4efccd3b23
+status: test
+description: |
+    A YARA rule whose name identifies ransomware, a webshell, or a post-exploitation framework matched, anywhere
+    except the security agents' own directories. These rule families are specific enough that a match warrants
+    an investigation regardless of path.
+author: HAWK Defense
+date: 2026-10-05
+tags:
+    - attack.impact
+    - attack.t1486
+    - attack.persistence
+    - attack.t1505.003
+logsource:
+    product: hawk
+    service: yara
+detection:
+    selection:
+        rule_name|re: '(?i)(ransom|webshell|web_shell|cobalt_?strike|beacon|sliver|mimikatz|meterpreter|brute_?ratel|havoc|lockbit|blackcat|alphv|conti|ryuk|akira)'
+    filter_main_security_vendors:
+        file_path|contains:
+            - '\SentinelOne\'
+            - '\HAWK\vTTAC\'
+            - '\Windows Defender\'
+            - '\Microsoft\Windows Defender\'
+    condition: selection and not 1 of filter_main_*
+falsepositives:
+    - Security tooling, red-team kits or malware samples kept on purpose (e.g. on an analyst workstation)
+level: critical

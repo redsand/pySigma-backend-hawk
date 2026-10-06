@@ -151,14 +151,17 @@ def node(n, doc):
     return all(node(c, doc) for c in kids)
 
 
-def load_samples():
-    meta = json.loads((SAMPLES / "strata.json").read_text(encoding="utf-8"))
-    out = {}
-    for nm, m in meta["strata"].items():
-        p = SAMPLES / f"{nm}.jsonl"
-        docs = [json.loads(l) for l in p.read_text(encoding="utf-8").splitlines() if l.strip()] if p.exists() else []
-        out[nm] = dict(m, docs=docs)
-    return out
+def load_meta():
+    return json.loads((SAMPLES / "strata.json").read_text(encoding="utf-8"))["strata"]
+
+
+def iter_docs(nm):
+    p = SAMPLES / f"{nm}.jsonl"
+    if p.exists():
+        with p.open(encoding="utf-8") as fh:
+            for line in fh:
+                if line.strip():
+                    yield json.loads(line)
 
 
 def gated(rules, strata):
@@ -172,43 +175,57 @@ def gated(rules, strata):
     return [k for k, m in strata.items() if m["vendor_id"] == "*" or m["product_name"] not in whole], False
 
 
-def rate(rules, strata):
-    rules = json.loads(rules) if isinstance(rules, str) else rules
-    cov, has_gate = gated(rules, strata)
-    total, missing = 0.0, []
-    for k in cov:
-        st = strata[k]
-        if not st["docs"]:
-            if st["per_hour"] > 0:
-                missing.append(k)
-            continue
-        hit = sum(1 for d in st["docs"] if node(rules, d))
-        total += st["per_hour"] * hit / len(st["docs"])
-    return round(total, 2), has_gate, missing
-
-
 def main() -> int:
+    """One stratum in memory at a time: for each stratum, every (score, old/new) logic that
+    covers it is evaluated on that stratum's events, then the events are released."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--select", required=True)
     args = ap.parse_args()
-    strata = load_samples()
+    strata = load_meta()
     live = {str(x.get("hawk_id")).lower(): x for x in json.loads((HERE / "live" / "scores_now.json").read_text(encoding="utf-8")) if x.get("hawk_id")}
     conv = {json.loads(l)["hawk_id"].lower(): json.loads(l) for l in (HERE / "reports" / "converted.jsonl").read_text(encoding="utf-8").splitlines() if l.strip()}
-    out = []
-    for h in [l.strip().lower() for l in Path(args.select).read_text(encoding="utf-8").splitlines() if l.strip()]:
-        e = {"hawk_id": h, "score_id": live.get(h, {}).get("score_id"), "title": live.get(h, {}).get("filter_name"),
-             "enabled": bool(live.get(h, {}).get("enabled")), "weight": float(live.get(h, {}).get("correlation_action") or 0)}
+    ids = [l.strip().lower() for l in Path(args.select).read_text(encoding="utf-8").splitlines() if l.strip()]
+    entries, work = {}, []   # work: (hawk_id, tag, rules, strata covered)
+    for h in ids:
+        e = entries[h] = {"hawk_id": h, "score_id": live.get(h, {}).get("score_id"), "title": live.get(h, {}).get("filter_name"),
+                          "enabled": bool(live.get(h, {}).get("enabled")), "weight": float(live.get(h, {}).get("correlation_action") or 0)}
         for tag, rules in (("old", live.get(h, {}).get("rules")), ("new", conv.get(h, {}).get("rules"))):
             if not rules:
                 continue
-            try:
-                r, g, miss = rate(rules, strata)
-                e[f"{tag}_per_h"], e[f"{tag}_gated"], e[f"{tag}_unsampled"] = r, g, miss
-            except Unsupported as ex:
-                e[f"{tag}_per_h"], e[f"{tag}_error"] = None, str(ex)
-        out.append(e)
-    (HERE / "reports" / "local_eval.json").write_text(json.dumps(out, indent=1), encoding="utf-8")
-    print(f"evaluated {len(out)} scores on {sum(len(s['docs']) for s in strata.values())} sampled events in {len(strata)} strata")
+            rules = json.loads(rules) if isinstance(rules, str) else rules
+            cov, has_gate = gated(rules, strata)
+            e[f"{tag}_per_h"], e[f"{tag}_gated"] = 0.0, has_gate
+            e[f"{tag}_unsampled"] = [k for k in cov if not strata[k].get("sampled") and strata[k]["per_hour"] > 0]
+            work.append((h, tag, rules, set(cov)))
+    sampled = 0
+    for k, meta in strata.items():
+        todo = [w for w in work if k in w[3] and entries[w[0]].get(f"{w[1]}_error") is None]
+        if not todo or not meta.get("sampled"):
+            continue
+        hits, n = [0] * len(todo), 0
+        for doc in iter_docs(k):
+            n += 1
+            for i, (h, tag, rules, _) in enumerate(todo):
+                if entries[h].get(f"{tag}_error"):
+                    continue
+                try:
+                    if node(rules, doc):
+                        hits[i] += 1
+                except Unsupported as ex:
+                    entries[h][f"{tag}_error"] = str(ex)
+        sampled += n
+        for i, (h, tag, _, _) in enumerate(todo):
+            if n and not entries[h].get(f"{tag}_error"):
+                entries[h][f"{tag}_per_h"] += meta["per_hour"] * hits[i] / n
+        print(f"{k:<45} {n:>6} events, {len(todo)} logics", flush=True)
+    for e in entries.values():
+        for tag in ("old", "new"):
+            if e.get(f"{tag}_error"):
+                e[f"{tag}_per_h"] = None
+            elif f"{tag}_per_h" in e:
+                e[f"{tag}_per_h"] = round(e[f"{tag}_per_h"], 2)
+    (HERE / "reports" / "local_eval.json").write_text(json.dumps(list(entries.values()), indent=1), encoding="utf-8")
+    print(f"evaluated {len(entries)} scores on {sampled} sampled events in {len(strata)} strata")
     return 0
 
 

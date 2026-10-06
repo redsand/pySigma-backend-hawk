@@ -44,6 +44,8 @@ def main() -> int:
     ap.add_argument("--out", default=str(Path(__file__).parent / "reports" / "converted.jsonl"))
     ap.add_argument("--dirs", default=",".join(DEFAULT_DIRS))
     ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--extra-root", action="append", default=[],
+                    help="additional rule folder converted whole (e.g. ../hawk_rules); _source is hawk/<path>")
     args = ap.parse_args()
 
     sigma_root = Path(args.sigma_root)
@@ -55,17 +57,23 @@ def main() -> int:
     errors: list[dict] = []
     t0 = time.time()
     with out_path.open("w", encoding="utf-8") as fh:
-        for path in iter_rule_files(sigma_root, args.dirs.split(",")):
+        sources = [(path, str(path.relative_to(sigma_root)).replace("\\", "/"))
+                   for path in iter_rule_files(sigma_root, args.dirs.split(","))]
+        for extra in args.extra_root:
+            root = Path(extra)
+            sources += [(path, "hawk/" + str(path.relative_to(root)).replace("\\", "/")) for path in sorted(root.rglob("*.yml"))]
+        for path, rel in sources:
             n_files += 1
             if args.limit and n_files > args.limit:
                 break
-            rel = str(path.relative_to(sigma_root)).replace("\\", "/")
             try:
-                meta = yaml.safe_load(path.read_text(encoding="utf-8"))
+                docs = [d for d in yaml.safe_load_all(path.read_text(encoding="utf-8")) if isinstance(d, dict)]
             except Exception as e:  # noqa: BLE001
                 errors.append({"file": rel, "stage": "yaml", "error": f"{type(e).__name__}: {e}"})
                 continue
-            if not isinstance(meta, dict) or "detection" not in meta:
+            # a multi-document file (base rule + correlation) is described by its last rule document
+            meta = next((d for d in reversed(docs) if "detection" in d or "correlation" in d), None)
+            if meta is None or not any("detection" in d for d in docs):
                 continue  # correlation-only or non-rule documents
             try:
                 records = convert_file(backend, path)
