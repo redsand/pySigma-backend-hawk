@@ -1,67 +1,65 @@
-# Local exclusions for noisy Sigma scores - DRAFT 2026-10-05, NOT APPLIED YET.
+# Local exclusions for noisy scores, applied by sync_scores.py on every push (and by
+# refresh_plan.py / local_eval.py when they compare), so a Sigma refresh never drops them.
+# Same idea as score_weights.json for weights.
 #
-# Why a file: the Sigma refresh replaces a score's logic, so a filter edited in the portal would
-# be lost on the next sync. sync_scores.py would AND every exclusion below onto the converted
-# logic each time it pushes (like score_weights.json for weights), and refresh_plan.py would
-# compare with the exclusions applied.
+# Three tiers - keep them separate:
+#   generic   benign on every network (Windows Installer, AWS SSM, Intune, Office, vendor updaters)
+#   hawk      HAWK's own software (vTTAC agent) - benign for every HAWK customer
+#   customer  one customer's own tools/accounts - scoped to that customer's group subtree, so
+#             other customers keep full coverage. `customer:` names a top-level group in the
+#             portal group tree (GET /group); every descendant group is included at sync time.
 #
-# How an exclusion becomes engine logic (there is no Not node):
-#   one condition    ->  column != value          (a missing column counts as "not excluded")
-#   several (AND)    ->  Or( c1 != v1, c2 != v2 )  (De Morgan: NOT(c1 AND c2))
-#   scope: group     ->  the Or also gets  group_name != <group>, so other tenants are untouched
-# Matching: equals (case-insensitive, whole value), endswith, contains or regex (PCRE, case-insensitive).
-#
-# evidence = share of the score's hits the exclusion removes, from loud_drilldown.py, 72h, 2026-10-05.
-# scope: global = benign everywhere (our own agent/scanner, cloud agents); group = tenant-specific.
+# How an exclusion becomes engine logic (no Not node; a missing column counts as "not excluded"):
+#   one condition    ->  column != value
+#   several (AND)    ->  Or( c1 != v1, c2 != v2 )                       NOT(c1 AND c2)
+#   customer scope   ->  Or( And(group_name != g for g in subtree), <exclusion> )
+# Matching: equals (case-insensitive, whole value), startswith, endswith, contains, regex (PCRE).
+# evidence: share of the score's hits removed (loud_drilldown.py / local_eval.py), with date.
 
 filters:
   - score: 7195a772-4b3f-43a4-a210-6a003d65caa1      # 1307 Suspicious User Agent
     exclusions:
       - name: LANDesk/Ivanti software distribution
-        scope: {group: hunt}
+        tier: customer
+        customer: HUNT
         match: {http_user_agent: {equals: LANDeskDownloader}}
-        evidence: "11,199 of 11,336 hits (98.8%)"
-      - name: vendor updaters
-        scope: global
+        evidence: "11,199 of 11,336 hits, 72h 2026-10-05"
+      - name: vendor updaters (Logitech G HUB, TechSmith)
+        tier: generic
         match: {http_user_agent: {regex: '^(GHubDownloader/|STDownloader/)'}}
         evidence: "105 of 11,336"
 
   - score: 61065c72-5d7d-44ef-bf41-6a36684b545f      # 186486 Elevated System Shell Spawned
     exclusions:
       - name: HAWK vTTAC agent
-        scope: global
+        tier: hawk
         match: {parent_image: {endswith: '\Program Files\HAWK\vTTAC\hawkvttac.exe'}}
         evidence: "45,561 of 366,149"
       - name: AWS SSM document worker
-        scope: global
+        tier: generic
         match: {parent_image: {endswith: '\Program Files\Amazon\SSM\ssm-document-worker.exe'}}
         evidence: "23,662 of 366,149"
       - name: Realtek audio service
-        scope: global
+        tier: generic
         match: {parent_image: {endswith: '\RtkAudUService64.exe'}}
         evidence: "14,980 of 366,149"
       - name: Intune management extension
-        scope: global
+        tier: generic
         match: {parent_image: {endswith: '\Microsoft Intune Management Extension\AgentExecutor.exe'}}
         evidence: "4,601 of 366,149"
-      # remaining ~277k: wevtutil um/im via powershell (manifest re-registration, ~47k) and others;
-      # needs a second drill-down by parent_command before filtering
 
   - score: 8a582fe2-0882-4b89-a82a-da6b2dc32937      # 2135 Suspicious WmiPrvSE Child Process
     exclusions:
-      - name: HAWK scanner account
-        scope: global
-        match: {correlation_username: {equals: hawkscan}}
-        evidence: "304 of 397"
-      - name: admhs service account
-        scope: {group: hunt}
-        match: {correlation_username: {equals: admhs}}
-        evidence: "93 of 397"
+      - name: HUNT scanner and service accounts
+        tier: customer
+        customer: HUNT
+        match: {correlation_username: {regex: '^(hawkscan|admhs)$'}}
+        evidence: "397 of 397, 72h 2026-10-05"
 
   - score: 3a6586ad-127a-4d3b-a677-1e6eacdf8fde      # 1957 Shell/Scripting Spawning Suspicious Programs
     exclusions:
       - name: AWS WorkSpaces update agent
-        scope: global
+        tier: generic
         match:
           resource_name: {regex: '^wsamzn-'}
           parent_command: {contains: '-ExecutionPolicy AllSigned'}
@@ -70,22 +68,35 @@ filters:
   - score: 0c79148b-118e-472b-bdb7-9b57b444cc19      # 2074 Suspicious File Download Using Office Application
     exclusions:
       - name: Office protocol handler opening links
-        scope: global
+        tier: generic
         match: {parent_image: {endswith: '\Office16\protocolhandler.exe'}}
         evidence: "139 of 230"
 
   - score: ab6bffca-beff-4baa-af11-6733f296d57a      # 1390 AD User Enumeration
     exclusions:
       - name: ManageEngine ADManager service account
-        scope: {group: hunt}
+        tier: customer
+        customer: HUNT
         match: {correlation_username: {equals: admanager}}
         evidence: "14,178 of 173,937"
-      # the rest is spread over many users on DCs; weight 3 already keeps it from notifying
 
-# Not filters - need a logic check first:
-#   d7bcd677-645d-4691-a8d4-7a5602b780d1  2214 PowerShell Command Line Obfuscation: SYSTEM jobs from cmd.exe on
-#       epm / application4 / application7 / powerbi-gateway - drill into the command line before filtering.
-#   5aad0995-46ab-41bd-a9ff-724f41114971  2409 Esentutl VSS Keys: SYSTEM writes to Services\VSS\Diag\* on laptops;
-#       the Sigma rule keys on esentutl.exe - check whether the image condition survived translation.
-#   73921b9c-cafd-4446-b0c6-fdb0ace42bc0  186574 Credential Guard Disabled: every hit is LsaCfgFlags; the rule
-#       should require the value 0 (Details) - check the details leaf against what the agent sends.
+  - score: c3a99af4-35a9-4668-879e-c09aeb4f2bdf      # 52285 Rundll32 Execution Without DLL File
+    exclusions:
+      - name: Windows Installer managed custom action
+        tier: generic
+        match:
+          command: {regex: '\\Windows\\Installer\\MSI[0-9A-F]+\.tmp,zzzzInvokeManagedCustomActionOutOfProc'}
+        evidence: "19 of 19 sampled, 2026-10-06"
+
+  - score: 6f8b3439-a203-45dc-a88b-abf57ea15ccf      # 2020 HackTool - CrackMapExec PowerShell Obfuscation
+    exclusions:
+      - name: HUNT scanner account
+        tier: customer
+        customer: HUNT
+        match: {correlation_username: {equals: hawkscan}}
+        evidence: "1 of 1 sampled, 2026-10-06"
+
+# Not filters yet - need a logic check first:
+#   2214 PowerShell Command Line Obfuscation (SYSTEM jobs from cmd.exe on epm/application4/7/powerbi-gateway)
+#   2409 Esentutl VSS Keys (VSS\Diag writes by SYSTEM; esentutl image condition may be missing)
+#   186574 Credential Guard Disabled (every hit is LsaCfgFlags; value-0 condition may be missing)

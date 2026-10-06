@@ -43,9 +43,13 @@ def sig(ls):
     return sorted(json.dumps([l.get('key'), _norm_args(l.get('args'))], sort_keys=True) for l in ls)
 
 
+from score_filters import load_filters, apply_filters, fetch_group_tree
+_s = requests.Session(); _s.headers['Authorization'] = 'Bearer ' + key
+filters = load_filters(groups=fetch_group_tree(_s, 'https://portal.hawk.io:8080/API/1.1/'))
 rows = []
 for line in open('reports/converted.jsonl', encoding='utf-8'):
     x = json.loads(line); h = x['hawk_id'].lower()
+    x['rules'] = apply_filters(h, x['rules'], filters)
     if x['_source'].startswith('deprecated') or h not in live:
         continue
     old = leaves(live[h]['rules']); new = leaves(x['rules'])

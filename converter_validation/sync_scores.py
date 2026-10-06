@@ -141,6 +141,8 @@ def main() -> int:
     session.headers["Authorization"] = "Bearer " + api_key()
     live_before = fetch_live(session)
     ledger = json.loads((HERE / "score_weights.json").read_text(encoding="utf-8")) if (HERE / "score_weights.json").exists() else {}
+    from score_filters import load_filters, apply_filters, fetch_group_tree
+    filters = load_filters(groups=fetch_group_tree(session, BASE))
 
     for hid in ids:
         rec = conv[hid]
@@ -152,6 +154,7 @@ def main() -> int:
         weight, weight_source = pick_weight(hid, rec, prev, ledger, args.reset_weight)
         rec = dict(rec)
         rec["correlation_action"] = weight
+        rec["rules"] = apply_filters(hid, rec.get("rules"), filters)   # score_filters.yml exclusions
         form = to_form(rec, args.group, prev_date if prev_date and not prev_date.startswith("1970") else "")
         if "(LOUD)" in str(prev.get("filter_name") or "") and "(LOUD)" not in form["filter_name"]:
             # disabled for noise (mark_loud.py): the title says why, a refresh must not drop it
@@ -163,6 +166,7 @@ def main() -> int:
             "level": rec.get("_level"),
             "score": form["correlation_action"],
             "weight_source": weight_source,
+            "filtered": hid in filters,
             "weight_before": prev.get("correlation_action") if prev else None,
             "existed_before": hid in live_before,
             "enabled_before": bool(live_before.get(hid, {}).get("enabled")) if hid in live_before else None,

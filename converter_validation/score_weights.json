@@ -17,6 +17,15 @@
   "score_id": 1957,
   "title": "Windows Shell/Scripting Processes Spawning Suspicious Programs"
  },
+ "58cb02d5-78ce-4692-b3e1-dce850aae41a": {
+  "weight": 5.0,
+  "reason": "2026-10-06: Sigma refresh makes it noisier (local_eval on real events); capped at 5 so it adds context but cannot notify alone",
+  "source": "local",
+  "recorded": "2026-10-05",
+  "previous_weight": 10.0,
+  "score_id": 2442,
+  "title": "Alternate PowerShell Hosts Pipe"
+ },
  "5aad0995-46ab-41bd-a9ff-724f41114971": {
   "weight": 10.0,
   "reason": "2026-10-05: weight>=15 and >=1 hit/h on its own over 72h; needs corroboration to notify",
@@ -101,6 +110,24 @@
   "score_id": 2135,
   "title": "Suspicious WmiPrvSE Child Process"
  },
+ "9f107a84-532c-41af-b005-8d12a607639f": {
+  "weight": 5.0,
+  "reason": "2026-10-06: Sigma refresh makes it noisier (local_eval on real events); capped at 5 so it adds context but cannot notify alone",
+  "source": "local",
+  "recorded": "2026-10-05",
+  "previous_weight": 10.0,
+  "score_id": 2102,
+  "title": "Suspicious Cabinet File Expansion"
+ },
+ "9fc51a3c-81b3-4fa7-b35f-7c02cf10fd2d": {
+  "weight": 5.0,
+  "reason": "2026-10-06: Sigma refresh makes it noisier (local_eval on real events); capped at 5 so it adds context but cannot notify alone",
+  "source": "local",
+  "recorded": "2026-10-05",
+  "previous_weight": 10.0,
+  "score_id": 2330,
+  "title": "Usage Of Web Request Commands And Cmdlets"
+ },
  "a6a39bdb-935c-4f0a-ab77-35f4bbf44d33": {
   "weight": 10.0,
   "reason": "2026-10-05: weight>=15 and >=1 hit/h on its own over 72h; needs corroboration to notify",
@@ -136,6 +163,15 @@
   "previous_weight": 16.0,
   "score_id": 2214,
   "title": "Potential PowerShell Command Line Obfuscation"
+ },
+ "dcaa3f04-70c3-427a-80b4-b870d73c94c4": {
+  "weight": 5.0,
+  "reason": "2026-10-06: Sigma refresh makes it noisier (local_eval on real events); capped at 5 so it adds context but cannot notify alone",
+  "source": "local",
+  "recorded": "2026-10-05",
+  "previous_weight": 6.0,
+  "score_id": 2022,
+  "title": "Suspicious Csc.exe Source File Folder"
  },
  "f3a98ce4-6164-4dd4-867c-4d83de7eca51": {
   "weight": 10.0,
