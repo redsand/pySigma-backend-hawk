@@ -1,0 +1,91 @@
+# Local exclusions for noisy Sigma scores - DRAFT 2026-10-05, NOT APPLIED YET.
+#
+# Why a file: the Sigma refresh replaces a score's logic, so a filter edited in the portal would
+# be lost on the next sync. sync_scores.py would AND every exclusion below onto the converted
+# logic each time it pushes (like score_weights.json for weights), and refresh_plan.py would
+# compare with the exclusions applied.
+#
+# How an exclusion becomes engine logic (there is no Not node):
+#   one condition    ->  column != value          (a missing column counts as "not excluded")
+#   several (AND)    ->  Or( c1 != v1, c2 != v2 )  (De Morgan: NOT(c1 AND c2))
+#   scope: group     ->  the Or also gets  group_name != <group>, so other tenants are untouched
+# Matching: equals (case-insensitive, whole value), endswith, contains or regex (PCRE, case-insensitive).
+#
+# evidence = share of the score's hits the exclusion removes, from loud_drilldown.py, 72h, 2026-10-05.
+# scope: global = benign everywhere (our own agent/scanner, cloud agents); group = tenant-specific.
+
+filters:
+  - score: 7195a772-4b3f-43a4-a210-6a003d65caa1      # 1307 Suspicious User Agent
+    exclusions:
+      - name: LANDesk/Ivanti software distribution
+        scope: {group: hunt}
+        match: {http_user_agent: {equals: LANDeskDownloader}}
+        evidence: "11,199 of 11,336 hits (98.8%)"
+      - name: vendor updaters
+        scope: global
+        match: {http_user_agent: {regex: '^(GHubDownloader/|STDownloader/)'}}
+        evidence: "105 of 11,336"
+
+  - score: 61065c72-5d7d-44ef-bf41-6a36684b545f      # 186486 Elevated System Shell Spawned
+    exclusions:
+      - name: HAWK vTTAC agent
+        scope: global
+        match: {parent_image: {endswith: '\Program Files\HAWK\vTTAC\hawkvttac.exe'}}
+        evidence: "45,561 of 366,149"
+      - name: AWS SSM document worker
+        scope: global
+        match: {parent_image: {endswith: '\Program Files\Amazon\SSM\ssm-document-worker.exe'}}
+        evidence: "23,662 of 366,149"
+      - name: Realtek audio service
+        scope: global
+        match: {parent_image: {endswith: '\RtkAudUService64.exe'}}
+        evidence: "14,980 of 366,149"
+      - name: Intune management extension
+        scope: global
+        match: {parent_image: {endswith: '\Microsoft Intune Management Extension\AgentExecutor.exe'}}
+        evidence: "4,601 of 366,149"
+      # remaining ~277k: wevtutil um/im via powershell (manifest re-registration, ~47k) and others;
+      # needs a second drill-down by parent_command before filtering
+
+  - score: 8a582fe2-0882-4b89-a82a-da6b2dc32937      # 2135 Suspicious WmiPrvSE Child Process
+    exclusions:
+      - name: HAWK scanner account
+        scope: global
+        match: {correlation_username: {equals: hawkscan}}
+        evidence: "304 of 397"
+      - name: admhs service account
+        scope: {group: hunt}
+        match: {correlation_username: {equals: admhs}}
+        evidence: "93 of 397"
+
+  - score: 3a6586ad-127a-4d3b-a677-1e6eacdf8fde      # 1957 Shell/Scripting Spawning Suspicious Programs
+    exclusions:
+      - name: AWS WorkSpaces update agent
+        scope: global
+        match:
+          resource_name: {regex: '^wsamzn-'}
+          parent_command: {contains: '-ExecutionPolicy AllSigned'}
+        evidence: "~230 of 234"
+
+  - score: 0c79148b-118e-472b-bdb7-9b57b444cc19      # 2074 Suspicious File Download Using Office Application
+    exclusions:
+      - name: Office protocol handler opening links
+        scope: global
+        match: {parent_image: {endswith: '\Office16\protocolhandler.exe'}}
+        evidence: "139 of 230"
+
+  - score: ab6bffca-beff-4baa-af11-6733f296d57a      # 1390 AD User Enumeration
+    exclusions:
+      - name: ManageEngine ADManager service account
+        scope: {group: hunt}
+        match: {correlation_username: {equals: admanager}}
+        evidence: "14,178 of 173,937"
+      # the rest is spread over many users on DCs; weight 3 already keeps it from notifying
+
+# Not filters - need a logic check first:
+#   d7bcd677-645d-4691-a8d4-7a5602b780d1  2214 PowerShell Command Line Obfuscation: SYSTEM jobs from cmd.exe on
+#       epm / application4 / application7 / powerbi-gateway - drill into the command line before filtering.
+#   5aad0995-46ab-41bd-a9ff-724f41114971  2409 Esentutl VSS Keys: SYSTEM writes to Services\VSS\Diag\* on laptops;
+#       the Sigma rule keys on esentutl.exe - check whether the image condition survived translation.
+#   73921b9c-cafd-4446-b0c6-fdb0ace42bc0  186574 Credential Guard Disabled: every hit is LsaCfgFlags; the rule
+#       should require the value 0 (Details) - check the details leaf against what the agent sends.
