@@ -155,6 +155,50 @@ filters:
         match: {ip_src: {regex: '^(50\.16\.95\.2|100\.24\.161\.185)$'}}
         evidence: "same egress addresses"
 
+  - score: b3dfac86-1056-4b6b-9c67-db4a10a9e812      # 170146 Suspicious Powershell Cmdlets
+    exclusions:
+      - name: stdin script-runner wrapper ($sawStreamError / Invoke-Expression of piped input; Ivanti SWD and others)
+        tier: generic
+        match: {command: {contains: '$sawStreamError = $false $theScript = ($input | Out-String)'}}
+        evidence: "1,932 of 1,932 events 48h 2026-10-07; the piped script itself still appears in PowerShell 4104 logs"
+
+  - score: cdc8da7d-c303-42f8-b08c-b4ab47230263      # 1687 Rundll32 Internet Connection
+    exclusions:
+      - name: Logitech LogiLDA fetch, Windows Program Compatibility Assistant, cloud SDB install
+        tier: generic
+        match: {command: {regex: '(?i)(LogiLDA\.dll,LogiFetch|PcaSvc\.dll,PcaPatchSdbTask|\\appcompat\\cloudsdb\\apppatch\.sdb)'}}
+        evidence: "~69 of 124 events 48h 2026-10-07"
+
+  - score: e4b6d2a7-d8a4-4f19-acbd-943c16d90647      # 106522 Potentially Suspicious PowerShell Child Processes
+    exclusions:
+      - name: AWS WorkSpaces agent querying its own scheduled tasks
+        tier: generic
+        match: {command: {regex: '(?i)\\schtasks\.exe /(query|change /enable) /TN WorkSpace'}}
+        evidence: "414 of 414 events 48h 2026-10-07"
+
+  - score: 4fdc44df-bfe9-4fcc-b041-68f5a2d3031c      # 41768 Powershell LocalAccount Manipulation
+    exclusions:
+      - name: HUNT Intune remediation script that creates local administrator1 (REPORTED - plaintext password in script; remove once HUNT moves to LAPS)
+        tier: customer
+        customer: HUNT
+        match: {path: {regex: '(?i)\\IMECache\\HealthScripts\\122a4506-928f-4902-91f2-19ec1f7434a2_'}}
+        evidence: "111 of 121 events 48h 2026-10-07"
+
+  - score: 243de76f-4725-4f2e-8225-a8a69b15ad61      # 1761 PowerShell Create Local User
+    exclusions:
+      - name: HUNT Intune remediation script that creates local administrator1 (REPORTED - plaintext password in script; remove once HUNT moves to LAPS)
+        tier: customer
+        customer: HUNT
+        match: {path: {regex: '(?i)\\IMECache\\HealthScripts\\122a4506-928f-4902-91f2-19ec1f7434a2_'}}
+        evidence: "111 of 121 events 48h 2026-10-07"
+
+  - score: t1085-0001                                # 503 Rundll32.exe Connection to the Internet (custom score; applied with apply_filters_live.py)
+    exclusions:
+      - name: Logitech LogiLDA fetch, Windows Program Compatibility Assistant, cloud SDB install
+        tier: generic
+        match: {command: {regex: '(?i)(LogiLDA\.dll,LogiFetch|PcaSvc\.dll,PcaPatchSdbTask|\\appcompat\\cloudsdb\\apppatch\.sdb)'}}
+        evidence: "~185 of 261 events 48h 2026-10-07"
+
 # Not filters yet - need a logic check first:
 #   2214 PowerShell Command Line Obfuscation (SYSTEM jobs from cmd.exe on epm/application4/7/powerbi-gateway)
 #   2409 Esentutl VSS Keys (VSS\Diag writes by SYSTEM; esentutl image condition may be missing)
