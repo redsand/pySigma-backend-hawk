@@ -81,10 +81,32 @@ detection:
 """
     out = hawkBackend(processing_pipeline=hawk_pipeline()).convert(SigmaCollection.from_yaml(rule))
     leaves = {l["key"]: l for l in _leaves(out[0]["rules"])}
-    # ResultType is the Graph status.errorCode, emitted by the collector as errorCode
-    assert leaves["errorCode"]["args"]["int"]["value"] == 0
+    # ResultType 0 means success; the collector omits errorCode on most successful sign-ins,
+    # so it keys on the sign-in success flag instead of errorCode == 0
+    assert "errorCode" not in leaves
+    assert leaves["audit_login"]["args"]["bool"]["value"] in ("success", "true")  # engine: both -> 1
     assert "conditionalAccessStatus" in leaves and "riskState" in leaves
     assert "product_source" in leaves
+
+
+def test_azure_signin_nonzero_resulttype_is_errorcode() -> None:
+    rule = """
+title: T
+id: 77777777-2222-3333-4444-666666666666
+status: test
+level: high
+logsource:
+    product: azure
+    service: signinlogs
+detection:
+    selection:
+        ResultType: 50126
+    condition: selection
+"""
+    out = hawkBackend(processing_pipeline=hawk_pipeline()).convert(SigmaCollection.from_yaml(rule))
+    leaves = {l["key"]: l for l in _leaves(out[0]["rules"])}
+    # any other ResultType is the Graph status.errorCode, emitted by the collector as errorCode
+    assert leaves["errorCode"]["args"]["int"]["value"] == 50126
 
 
 def test_m365_status_success_matches_management_api_vocabulary() -> None:
