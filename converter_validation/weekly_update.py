@@ -77,6 +77,13 @@ def main() -> int:
     errs = HERE / "reports" / "converted.jsonl.errors.json"
     nerr = len(json.loads(errs.read_text(encoding="utf-8"))) if errs.exists() else 0
     md += ["## Conversion", f"{len(conv)} records, {nerr} conversion errors", ""]
+    # hawk_rules entries contributed upstream keep their id; once SigmaHQ merges one, both copies
+    # convert to the same hawk_id - delete the hawk_rules copy (e.g. SigmaHQ PR #6439).
+    import collections as _c
+    _ids = _c.Counter(json.loads(l)["hawk_id"].lower() for l in conv_path.read_text(encoding="utf-8").splitlines() if l.strip())
+    _dups = sorted(h for h, n in _ids.items() if n > 1)
+    if _dups:
+        md += ["### ACTION: rule ids present in both SigmaHQ and hawk_rules (delete the hawk_rules copy)", ""] + [f"- {h}" for h in _dups] + [""]
 
     # 3. portal weight edits -> ledger
     tw = run([sys.executable, "track_weights.py", "--write", "--reason", f"portal edit, recorded {day}"])
