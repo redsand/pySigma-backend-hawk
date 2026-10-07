@@ -915,6 +915,10 @@ class hawkBackend(TextQueryBackend):
             if sv in ("failure", "failed", "false"):
                 return norm_key, False, False
             return norm_key, value, is_regex
+        if norm_key == "errorCode" and str(value).strip() == "0" and not is_regex:
+            # Sigma's "ResultType: 0" means a successful sign-in; the collector omits errorCode on
+            # most successes (2026-10-07: 58 of 75 for one user), so key on the success flag.
+            return "audit_login", True, False
         if norm_key == "errorCode" and isinstance(value, str) and value.strip().lstrip("-").isdigit() and not is_regex:
             return norm_key, int(value), False
         if norm_key == "isInteractive" and not is_regex:
