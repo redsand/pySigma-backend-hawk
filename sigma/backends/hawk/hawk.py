@@ -917,6 +917,14 @@ class hawkBackend(TextQueryBackend):
             return norm_key, value, is_regex
         if norm_key == "errorCode" and isinstance(value, str) and value.strip().lstrip("-").isdigit() and not is_regex:
             return norm_key, int(value), False
+        if norm_key == "isInteractive" and not is_regex:
+            # Graph boolean; arrives as 1/0 or JSON true/false (engine boolean intValue 1/0).
+            # An int compare matches both; a "true" string compare matches neither.
+            sv = str(value).strip().lower()
+            if sv in ("true", "1", "yes"):
+                return norm_key, 1, False
+            if sv in ("false", "0", "no"):
+                return norm_key, 0, False
         if norm_key == "result" and isinstance(value, str) and not is_regex:
             # directoryAudits result values are lower-case success / failure / clientError
             return norm_key, {"success": "success", "failure": "failure"}.get(value.lower(), value), False

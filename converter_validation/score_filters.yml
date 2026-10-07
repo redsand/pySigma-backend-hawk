@@ -139,6 +139,22 @@ filters:
         match: {image: {regex: '\\(svchost|omadmclient)\.exe$'}}
         evidence: "332 of 335 sampled (svchost 318, omadmclient 16); reg.exe / powershell writes still alert"
 
+  - score: dbc2d43f-0fbf-4ceb-b00c-2c5b2fa1590c      # HAWK token replay from hosting ASN (correlation)
+    exclusions:
+      - name: HUNT corporate AWS egress (WorkSpaces/NAT; 27 and 14 users sign in from them)
+        tier: customer
+        customer: HUNT
+        match: {ip_src: {regex: '^(50\.16\.95\.2|100\.24\.161\.185)$'}}
+        evidence: "7d 2026-10-06: 25,597 and 1,388 successful sign-ins"
+
+  - score: 839bb565-29f4-432d-9418-5d9886e8a275      # risky interactive success from hosting ASN
+    exclusions:
+      - name: HUNT corporate AWS egress
+        tier: customer
+        customer: HUNT
+        match: {ip_src: {regex: '^(50\.16\.95\.2|100\.24\.161\.185)$'}}
+        evidence: "same egress addresses"
+
 # Not filters yet - need a logic check first:
 #   2214 PowerShell Command Line Obfuscation (SYSTEM jobs from cmd.exe on epm/application4/7/powerbi-gateway)
 #   2409 Esentutl VSS Keys (VSS\Diag writes by SYSTEM; esentutl image condition may be missing)

@@ -98,6 +98,7 @@ SERVICE_CROSSWALK = {
         "userAgent": "userAgent", "UserAgent": "userAgent",
         "IPAddress": "ipAddress", "IpAddress": "ipAddress",
         "IsInteractive": "isInteractive",
+        "AutonomousSystemNumber": "ip_src_as_number",   # HAWK geo/ASN enrichment; Graph autonomousSystemNumber is mostly empty
         "DeviceDetail.deviceId": "deviceId", "DeviceDetail.trusttype": "deviceTrustType",
         "DeviceDetail.trustType": "deviceTrustType", "DeviceDetail.isCompliant": "deviceIsCompliant",
         "DeviceDetail.isManaged": "deviceIsManaged", "DeviceDetail.operatingSystem": "deviceOperatingSystem",
