@@ -31,7 +31,7 @@ SCORES = {
     # Tenable Nessus Agent plugins (e.g. the inline-PowerShell software inventory
     # 'sajb {... $fileInclude ...}') run cmd.exe/powershell.exe as SYSTEM from the
     # agent's plugin directory, spawned by nessus-agent-module.exe. The older
-    # HUNT scores 386/64673 only match '\TEMP\nessus_*' command lines, which the
+    # customer scores 386/64673 only match '\TEMP\nessus_*' command lines, which the
     # current agent no longer uses — these scans raised PowerShell/obfuscation
     # analytics and became cases (#619:3891, #632:2239, #617:2825, 2026-09-30).
     # Directory spoofing alone does not pass: System integrity is required.

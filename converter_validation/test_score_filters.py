@@ -4,8 +4,8 @@ from score_filters import apply_filters
 
 TREE = {"name": ".", "children": [
     {"name": "HAWK", "children": [{"name": "HAWK - Windows"}]},
-    {"name": "HUNT", "children": [{"name": "DR - Disaster Recovery"}, {"name": "AWS - Amazon Cloud", "children": [{"name": "Prod-Shared"}]}]},
-    {"name": "PBEX-Inc"}]}
+    {"name": "CUST-A", "children": [{"name": "A - Site 2"}, {"name": "A - Cloud", "children": [{"name": "A-Shared"}]}]},
+    {"name": "CUST-B"}]}
 
 BASE = [{"key": "And", "children": [
     {"key": "image", "class": "column", "return": "str", "args": {"comparison": {"value": "="}, "str": {"value": r"\\cmd\.exe$", "regex": True}}}]}]
@@ -35,13 +35,13 @@ def test_generic_endswith():
 
 
 def test_customer_scope_only_hits_that_customer():
-    r = apply_filters("h", BASE, F({"tier": "customer", "customer": "HUNT", "name": "scanner",
-                                    "match": {"correlation_username": {"equals": "hawkscan"}}}))
-    assert not node(r, ev(correlation_username="hawkscan", group_name="hunt"))
-    assert not node(r, ev(correlation_username="HAWKSCAN", group_name="prod-shared")), "subtree + case-insensitive"
-    assert node(r, ev(correlation_username="hawkscan", group_name="pbex-inc")), "other customer keeps coverage"
-    assert node(r, ev(correlation_username="hawkscan", group_name="hawk - windows"))
-    assert node(r, ev(correlation_username="alice", group_name="hunt"))
+    r = apply_filters("h", BASE, F({"tier": "customer", "customer": "CUST-A", "name": "scanner",
+                                    "match": {"correlation_username": {"equals": "scanacct"}}}))
+    assert not node(r, ev(correlation_username="scanacct", group_name="cust-a"))
+    assert not node(r, ev(correlation_username="SCANACCT", group_name="a-shared")), "subtree + case-insensitive"
+    assert node(r, ev(correlation_username="scanacct", group_name="cust-b")), "other customer keeps coverage"
+    assert node(r, ev(correlation_username="scanacct", group_name="hawk - windows"))
+    assert node(r, ev(correlation_username="alice", group_name="cust-a"))
 
 
 def test_multi_condition_is_and():
@@ -60,6 +60,40 @@ def test_inserted_before_function_leaf():
 
 def test_unfiltered_score_unchanged():
     assert apply_filters("other", BASE, F({"tier": "generic", "name": "x", "match": {"user": {"equals": "svc"}}})) is BASE
+
+
+def test_private_customer_files_merge(tmp_path=None):
+    import os
+    import tempfile
+    from pathlib import Path
+    from score_filters import load_filters
+    tree = {"name": ".", "children": [dict(TREE["children"][1], guid="g-a"), dict(TREE["children"][2], guid="g-b")]}
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        (d / "pub.yml").write_text("filters:\n  - score: S1\n    exclusions:\n      - {name: g, tier: generic, match: {x: {equals: '1'}}}\n", encoding="utf-8")
+        (d / "c" / "customers" / "g-a").mkdir(parents=True)
+        (d / "c" / "customers" / "g-a" / "score_filters.yml").write_text(
+            "filters:\n  - score: s1\n    exclusions:\n      - {name: c, tier: customer, customer: CUST-A, match: {x: {equals: '2'}}}\n", encoding="utf-8")
+        os.environ["HAWK_SIGMA_RULES"] = str(d / "c")
+        try:
+            f = load_filters(d / "pub.yml", groups=tree)
+            assert [e["name"] for e in f["s1"]] == ["g", "c"]
+            (d / "c" / "customers" / "g-b").mkdir()
+            (d / "c" / "customers" / "g-b" / "score_filters.yml").write_text(
+                "filters:\n  - score: s2\n    exclusions:\n      - {name: wrong, tier: customer, customer: CUST-A, match: {x: {equals: '3'}}}\n", encoding="utf-8")
+            try:
+                load_filters(d / "pub.yml", groups=tree)
+                raise AssertionError("customer file under another customer's guid must be rejected")
+            except SystemExit:
+                pass
+            os.environ["HAWK_SIGMA_RULES"] = str(d / "missing")
+            try:
+                load_filters(d / "pub.yml", groups=tree)
+                raise AssertionError("missing private checkout must be an error")
+            except SystemExit:
+                pass
+        finally:
+            del os.environ["HAWK_SIGMA_RULES"]
 
 
 if __name__ == "__main__":

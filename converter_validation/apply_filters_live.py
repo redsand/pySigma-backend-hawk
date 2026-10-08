@@ -1,6 +1,6 @@
 """Apply score_filters.yml exclusions to production scores that the Sigma sync does NOT manage.
 
-sync_scores.py applies exclusions when it pushes converted SigmaHQ / hawk_rules logic. Scores
+sync_scores.py applies exclusions when it pushes converted SigmaHQ / hawk-sigma-rules logic. Scores
 from elsewhere (custom portal scores, the Sigma-Rules threat-report packs) are never re-pushed,
 so their exclusions are written once into the live logic here, through POST /scores/<score_id>
 (the same path disable_scores.py uses; enabled, weight and dates are kept).

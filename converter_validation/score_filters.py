@@ -10,6 +10,7 @@ leaf (counters must not count excluded events); otherwise appended to the top-le
 """
 import copy
 import json
+import os
 import re
 from pathlib import Path
 
@@ -45,23 +46,54 @@ def subtree_names(tree, top):
     return names(node)
 
 
-def load_filters(path=HERE / "score_filters.yml", groups=None):
-    doc = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
+def content_dir():
+    """Checkout of the private repo siem/hawk-sigma-rules (custom rules + customer content).
+    HAWK_SIGMA_RULES overrides the default sibling checkout ../../hawk-sigma-rules."""
+    return Path(os.environ.get("HAWK_SIGMA_RULES") or HERE.parents[1] / "hawk-sigma-rules")
+
+
+def _customer_guid(groups, name):
+    for g in (groups or {}).get("children") or []:
+        if str(g.get("name", "")).lower() == str(name).lower():
+            return str(g.get("guid"))
+    return None
+
+
+def load_filters(path=HERE / "score_filters.yml", groups=None, customers=True):
+    """Public generic/hawk exclusions plus, unless customers=False, every customer's private
+    customers/<group_guid>/score_filters.yml. A missing private checkout is an error: syncing
+    without it would push scores with the customer exclusions stripped."""
+    files = [Path(path)]
+    if customers:
+        cdir = content_dir() / "customers"
+        if not cdir.is_dir():
+            raise SystemExit(f"score_filters: private content repo not found at {cdir.parent} "
+                             "(clone siem/hawk-sigma-rules there or set HAWK_SIGMA_RULES)")
+        files += sorted(cdir.glob("*/score_filters.yml"))
     out = {}
-    for f in doc.get("filters") or []:
-        ex = []
-        for e in f.get("exclusions") or []:
-            tier = e.get("tier")
-            if tier not in TIERS:
-                raise SystemExit(f"score_filters: {f['score']} / {e.get('name')}: tier must be one of {TIERS}")
-            if tier == "customer":
-                if not e.get("customer"):
-                    raise SystemExit(f"score_filters: {e.get('name')}: customer tier needs `customer:`")
-                if groups is None:
-                    raise SystemExit("score_filters: customer-scoped exclusions need the group tree (groups=)")
-                e = dict(e, _groups=subtree_names(groups, e["customer"]))
-            ex.append(e)
-        out[str(f["score"]).lower()] = ex
+    for fp in files:
+        private = fp != Path(path)
+        doc = yaml.safe_load(fp.read_text(encoding="utf-8")) or {}
+        for f in doc.get("filters") or []:
+            ex = []
+            for e in f.get("exclusions") or []:
+                tier = e.get("tier")
+                if tier not in TIERS:
+                    raise SystemExit(f"score_filters: {f['score']} / {e.get('name')}: tier must be one of {TIERS}")
+                if private and tier != "customer":
+                    raise SystemExit(f"{fp}: {e.get('name')}: only customer-tier exclusions belong in a customer file")
+                if not private and tier == "customer":
+                    raise SystemExit(f"{fp}: {e.get('name')}: customer-tier exclusions belong in the private repo")
+                if tier == "customer":
+                    if not e.get("customer"):
+                        raise SystemExit(f"score_filters: {e.get('name')}: customer tier needs `customer:`")
+                    if groups is None:
+                        raise SystemExit("score_filters: customer-scoped exclusions need the group tree (groups=)")
+                    if private and _customer_guid(groups, e["customer"]) != fp.parent.name:
+                        raise SystemExit(f"{fp}: {e.get('name')}: customer {e['customer']!r} is not group {fp.parent.name}")
+                    e = dict(e, _groups=subtree_names(groups, e["customer"]))
+                ex.append(e)
+            out.setdefault(str(f["score"]).lower(), []).extend(ex)
     return out
 
 

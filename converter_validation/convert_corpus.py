@@ -45,7 +45,7 @@ def main() -> int:
     ap.add_argument("--dirs", default=",".join(DEFAULT_DIRS))
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--extra-root", action="append", default=[],
-                    help="additional rule folder converted whole (e.g. ../hawk_rules); _source is hawk/<path>")
+                    help="additional rule folder converted whole (e.g. ../../hawk-sigma-rules/rules); _source is hawk/<path>")
     args = ap.parse_args()
 
     sigma_root = Path(args.sigma_root)

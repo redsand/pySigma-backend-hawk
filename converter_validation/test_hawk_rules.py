@@ -1,4 +1,4 @@
-"""Check our own rules (hawk_rules/) against real events and positive controls with engine semantics.
+"""Check our own rules (siem/hawk-sigma-rules rules/) against real events and positive controls with engine semantics.
 
     python test_hawk_rules.py [converted.jsonl] [hits.json]
 Default inputs: reports/converted.jsonl (records whose _source starts with hawk/) and live/yara_hits.json.

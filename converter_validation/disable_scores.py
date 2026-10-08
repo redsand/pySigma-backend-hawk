@@ -72,7 +72,7 @@ def main() -> int:
     ap.add_argument("--make-public", action="store_true", help="set public=true; enabled unchanged")
     ap.add_argument("--non-public-enabled", action="store_true",
                     help="target every enabled ROOT-group ('.') score that is not public; "
-                         "tenant-group scores (e.g. hunt) are private on purpose")
+                         "tenant-group scores are private on purpose")
     ap.add_argument("--allow-loud", action="store_true", help="also enable scores marked (LOUD) by mark_loud.py")
     ap.add_argument("--execute", action="store_true")
     ap.add_argument("--manifest-dir", default=str(HERE / "reports" / "batches"))

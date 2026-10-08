@@ -2,7 +2,7 @@
 
 The engine adds every matching score's weight (Subtract scores take it away) into the event's
 `weight`; cases come from the final weight, not from any one score. A score that fires a lot but
-whose events are pulled back down by suppression scores (e.g. "HUNT Suppress Tenable.io Scanner")
+whose events are pulled back down by suppression scores (e.g. a customer's vulnerability-scanner suppression score)
 is not a case source. Counts per final-weight band over the window.
 
     python case_weight.py --titles "Suricata IDS Risk" "Teams Messages Read Via API (Likely Malicious)" [--hours 24]

@@ -1,6 +1,7 @@
 """Daily watch report for devices a customer asked us to keep an eye on.
 
-One watchlist per customer in watchlists/<group_guid>.yml (format: watchlists/example.yml.sample).
+One watchlist per customer in the private repo siem/hawk-sigma-rules, at
+customers/<group_guid>/watchlist.yml (format: customers/watchlist.example.yml).
 Each watchlist reads only that customer's explore index (hawkio-<group_guid>) and only agents in
 that customer's group subtree, so customers stay isolated. Read-only: no scores are changed.
 
@@ -25,7 +26,7 @@ import urllib3
 import yaml
 
 from backtest_explore import BASE, api_key
-from score_filters import fetch_group_tree, subtree_names
+from score_filters import content_dir, fetch_group_tree, subtree_names
 
 HERE = Path(__file__).resolve().parent
 urllib3.disable_warnings()
@@ -178,11 +179,11 @@ def main() -> int:
     ap.add_argument("--customer", help="group_guid of one watchlist (default: all)")
     ap.add_argument("--hours", type=float, default=24)
     args = ap.parse_args()
-    files = sorted((HERE / "watchlists").glob("*.yml"))
+    files = sorted((content_dir() / "customers").glob("*/watchlist.yml"))
     if args.customer:
-        files = [f for f in files if f.stem == args.customer]
+        files = [f for f in files if f.parent.name == args.customer]
     if not files:
-        raise SystemExit("no watchlists found")
+        raise SystemExit(f"no watchlists under {content_dir() / 'customers'}")
     s = requests.Session()
     s.headers["Authorization"] = "Bearer " + api_key()
     tree = fetch_group_tree(s, BASE)
@@ -191,10 +192,11 @@ def main() -> int:
     today = datetime.datetime.now(datetime.timezone.utc).date()
     for f in files:
         wl = yaml.safe_load(f.read_text(encoding="utf-8"))
-        if wl.get("group_guid") != f.stem:
-            raise SystemExit(f"{f.name}: group_guid {wl.get('group_guid')} does not match the file name")
+        guid = f.parent.name
+        if wl.get("group_guid") != guid:
+            raise SystemExit(f"{f}: group_guid {wl.get('group_guid')} does not match its folder")
         text = report(s, wl, tree, agents, args.hours, today)
-        dest = HERE / "reports" / "watch" / f.stem / f"{today.isoformat()}.md"
+        dest = HERE / "reports" / "watch" / guid / f"{today.isoformat()}.md"
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(text + "\n", encoding="utf-8")
         print(text)
