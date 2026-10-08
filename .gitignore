@@ -10,3 +10,6 @@ hawk.env
 converter_validation/live/
 converter_validation/reports/
 converter_validation/hawk.env
+
+# customer watchlists (customer device and contact names) - only the template is tracked
+converter_validation/watchlists/*.yml

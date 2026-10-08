@@ -1,0 +1,19 @@
+# Customer device watchlist - one file per customer, named <group_guid>.yml.
+# The group_guid is the customer's top-level group in the portal (GET /group); it is also the
+# suffix of the customer's explore index (hawkio-<guid>), so each watchlist only ever reads that
+# customer's own data. Real watchlists are gitignored (customer device names, requester names):
+# this repo is public.
+#
+#   python watch_report.py                  # every watchlist, last 24h
+#   python watch_report.py --customer <guid> --hours 72
+#
+# Entries past `expires` are reported as expired and no longer queried - renew or delete them.
+
+customer: EXAMPLE                       # top-level group name, checked against the group tree
+group_guid: 00000000-0000-0000-0000-000000000000
+devices:
+  - name: LAPTOP-EXAMPLE1               # NetBIOS name as the agent page shows it
+    requested_by: customer contact (role)
+    reason: requested extra monitoring
+    added: 2026-01-01
+    expires: 2026-01-31
