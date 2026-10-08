@@ -41,6 +41,14 @@ logsources:
       product: opencanary
     conditions:
       vendor_name: CanaryTools
+  # ThreatLocker Unified Audit via the HAWK collector (2026-10-08): one event per application-control
+  # decision; action Permit / Deny / Ringfenced, actionType execute / install / read / write / network.
+  threatlocker-any:
+    match:
+      product: threatlocker
+    conditions:
+      vendor_name: ThreatLocker
+      product_name: ThreatLocker
   # HAWK vTTAC agent YARA scanner (2026-10-05): one event per rule match, vendor_id 1001;
   # columns rule_name, scan_context (fim_change / process_create / code_integrity), file_path, hash.
   # AWS WAF request logs as normalized by HAWK (action ALLOW/BLOCK, http_path, http_query, rule_id).

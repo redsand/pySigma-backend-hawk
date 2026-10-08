@@ -19,7 +19,7 @@ _MAPS_PATH = Path(__file__).resolve().parents[2] / "backends" / "hawk" / "config
 _MAPS: dict = json.loads(_MAPS_PATH.read_text(encoding="utf-8"))
 
 # Sigma logsource product -> json_key_to_column table
-_PRODUCT_TABLE = {"aws": "aws", "okta": "okta", "azure": "m365", "m365": "m365"}
+_PRODUCT_TABLE = {"aws": "aws", "okta": "okta", "azure": "m365", "m365": "m365", "threatlocker": "threatlocker"}
 CONNECTOR_PRODUCTS = tuple(_PRODUCT_TABLE)
 
 # Sigma's Azure/M365 field names (Log Analytics / legacy o365 schema) -> the keys the HAWK M365
@@ -27,6 +27,19 @@ CONNECTOR_PRODUCTS = tuple(_PRODUCT_TABLE)
 # Exchange/AzureActiveDirectory/General/SharePoint, canonical event_source/event_name/title).
 # Verified from live product_source profiles on 2026-09-25 (converter_validation/live).
 _CROSSWALK = {
+    # ThreatLocker Unified Audit (product_name ThreatLocker). The collector keeps the native keys and
+    # fills HAWK columns beside them (checked on live events 2026-10-08); rules use the native names.
+    # isMonitorMode (1 = learning/monitor mode) and createdByProcess have no HAWK column and stay native.
+    "threatlocker": {
+        "fullPath": "filename", "FullPath": "filename",
+        "processPath": "image", "ProcessPath": "image",
+        "policyName": "alert_name", "PolicyName": "alert_name",
+        "actionType": "alerts_type_name", "ActionType": "alerts_type_name",
+        "action": "action", "Action": "action",
+        "applicationName": "app", "ApplicationName": "app",
+        "username": "correlation_username", "Username": "correlation_username",
+        "hostname": "ip_src_host", "Hostname": "ip_src_host",
+    },
     "azure": {
         # directoryAudits (Graph)
         "ActivityDisplayName": "activityDisplayName",

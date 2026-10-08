@@ -267,3 +267,30 @@ detection:
 """
     with pytest.raises(Exception):
         hawkBackend(processing_pipeline=hawk_pipeline()).convert(SigmaCollection.from_yaml(rule))
+
+
+def test_threatlocker_native_fields_map_to_hawk_columns() -> None:
+    rule = """
+title: T
+id: 66666666-2222-3333-4444-555555555555
+status: test
+level: high
+logsource:
+    product: threatlocker
+detection:
+    selection:
+        action: 'Deny'
+        actionType: 'execute'
+        policyName|contains: 'anydesk'
+        fullPath|endswith: '.exe'
+        processPath|endswith: 'explorer.exe'
+        username: 'BOB'
+        hostname: 'PC1'
+        isMonitorMode: '0'
+    condition: selection
+"""
+    out = hawkBackend(processing_pipeline=hawk_pipeline()).convert(SigmaCollection.from_yaml(rule))
+    keys = {l["key"] for l in _leaves(out[0]["rules"])}
+    assert {"vendor_name", "product_name", "action", "alerts_type_name", "alert_name", "filename", "image",
+            "correlation_username", "ip_src_host", "isMonitorMode"} <= keys
+    assert not keys & {"actionType", "policyName", "fullPath", "processPath", "username", "hostname"}
