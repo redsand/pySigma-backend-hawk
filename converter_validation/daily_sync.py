@@ -104,20 +104,12 @@ def main() -> int:
     live = {str(x.get("hawk_id")).lower(): x for x in requests.get(BASE + "scores?recursive=true&format=json",
             headers={"Authorization": "Bearer " + api_key()}, timeout=900, verify=False).json()["results"] if x.get("hawk_id")}
     new = [c for h, c in conv.items() if h not in live and not c["_source"].startswith("deprecated")]
-    # a score with the same title under another id (custom copy, older id) would become a duplicate
-    titles = {str(x.get("filter_name")).strip().lower(): x for x in live.values()}
-    dup_title = [c for c in new if c["filter_name"].strip().lower() in titles]
-    new = [c for c in new if c not in dup_title]
     dep = [h for h, c in conv.items() if c["_source"].startswith("deprecated") and live.get(h, {}).get("enabled")]
     (out / "new.txt").write_text("".join(c["hawk_id"].lower() + "\n" for c in new), encoding="utf-8")
     (out / "refresh.txt").write_text("".join(r["hawk_id"].lower() + "\n" for r in refresh), encoding="utf-8")
     (out / "deprecated_enabled.txt").write_text("".join(h + "\n" for h in dep), encoding="utf-8")
     md += [f"## New rules: {len(new)} (imported disabled)", ""]
     md += [f"- [{c['_level']}/{c['_status']}] w={c['correlation_action']} {c['filter_name']}  ({c['_source']})" for c in new]
-    if dup_title:
-        md += ["", f"### Not pushed: {len(dup_title)} new rule(s) whose title already exists in production under another id",
-               "Compare them and delete or retitle one before pushing.", ""]
-        md += [f"- {c['filter_name']} ({c['hawk_id']}) vs live {titles[c['filter_name'].strip().lower()]['score_id']}" for c in dup_title]
     md += ["", f"## Refreshes: {len(refresh)} ({len(rows) - len(refresh)} more differ but are on the hold list)", ""]
     md += [f"- {r['score_id']} {'ENABLED ' if r['enabled'] == 'True' else 'disabled'} {r['kind']}: {r['title']}" for r in refresh]
     md += ["", f"## Deprecated in Sigma but still enabled: {len(dep)}", ""]
