@@ -294,3 +294,28 @@ detection:
     assert {"vendor_name", "product_name", "action", "alerts_type_name", "alert_name", "filename", "image",
             "correlation_username", "ip_src_host", "isMonitorMode"} <= keys
     assert not keys & {"actionType", "policyName", "fullPath", "processPath", "username", "hostname"}
+
+
+def test_windows_provider_name_matches_hawkagentd_product_name() -> None:
+    rule = """
+title: T
+id: 77777777-2222-3333-4444-555555555555
+status: test
+level: high
+logsource:
+    product: windows
+    service: system
+detection:
+    selection:
+        Provider_Name: 'Service Control Manager'
+        EventID: 7045
+    selection_log:
+        Provider_Name:
+            - 'Microsoft-Windows-Eventlog'
+            - 'Microsoft-Windows-User Profiles Service'
+    condition: selection or selection_log
+"""
+    out = hawkBackend(processing_pipeline=hawk_pipeline()).convert(SigmaCollection.from_yaml(rule))
+    vals = {l["args"]["str"]["value"] for l in _leaves(out[0]["rules"]) if l["key"] == "product_name"}
+    assert {"Service_Control_Manager", "Eventlog", "User_Profiles_Service"} <= vals, vals
+    assert not any(" " in v or v.startswith("Microsoft-Windows-") for v in vals), vals
