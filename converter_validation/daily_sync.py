@@ -85,7 +85,7 @@ def main() -> int:
         if l.strip():
             r = json.loads(l)
             conv[r["hawk_id"].lower()] = r
-    errs = HERE / "reports" / "converted.jsonl.errors.json"
+    errs = HERE / "reports" / "converted.errors.json"
     nerr = len(json.loads(errs.read_text(encoding="utf-8"))) if errs.exists() else 0
     md += ["## Conversion", f"{len(conv)} rules, {nerr} conversion errors", ""]
     for t in ("test_hawk_rules.py", "test_score_filters.py"):

@@ -76,7 +76,7 @@ def main() -> int:
     print(run([sys.executable, "test_hawk_rules.py"]).strip())
     print(run([sys.executable, "test_score_filters.py"]).strip())
     conv = {json.loads(l)["hawk_id"].lower(): json.loads(l) for l in conv_path.read_text(encoding="utf-8").splitlines() if l.strip()}
-    errs = HERE / "reports" / "converted.jsonl.errors.json"
+    errs = HERE / "reports" / "converted.errors.json"
     nerr = len(json.loads(errs.read_text(encoding="utf-8"))) if errs.exists() else 0
     md += ["## Conversion", f"{len(conv)} records, {nerr} conversion errors", ""]
     # our rules (siem/hawk-sigma-rules rules/) contributed upstream keep their id; once SigmaHQ merges one, both copies

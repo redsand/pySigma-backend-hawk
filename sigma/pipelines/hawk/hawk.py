@@ -4,6 +4,27 @@ from sigma.processing.conditions import LogsourceCondition, IncludeFieldConditio
 from .windows_unified import windows_unified_field
 from .connectors import connector_field, service_field, CONNECTOR_PRODUCTS, SERVICE_CROSSWALK, DROP_FIELDS, MODIFIED_PROPERTY_FIELDS, ModifiedPropertyPairTransformation
 from sigma.processing.pipeline import ProcessingItem, ProcessingPipeline
+from sigma.processing.transformations.values import ValueTransformation
+from sigma.types import SigmaString
+
+
+class WindowsProviderNameTransformation(ValueTransformation):
+    """Provider_Name values as hawkagentd writes them into product_name: "Microsoft-Windows-" stripped
+    and spaces replaced by "_" (hawkagentd/hawk-events.c). "Service Control Manager" ->
+    "Service_Control_Manager", "Microsoft-Windows-Eventlog" -> "Eventlog". Runs before the field is
+    renamed to product_name, while it is still known to be a provider name."""
+
+    def apply_value(self, field: str, val: SigmaString):
+        parts = list(val.s)
+        for i, p in enumerate(parts):
+            if isinstance(p, str):
+                if i == 0 and p.startswith("Microsoft-Windows-"):
+                    p = p[len("Microsoft-Windows-"):]
+                parts[i] = p.replace(" ", "_")
+        out = SigmaString("")
+        out.s = tuple(parts)
+        return out
+
 
 # TODO: the following code is just an example extend/adapt as required.
 # See https://sigmahq-pysigma.readthedocs.io/en/latest/Processing_Pipelines.html for further documentation.
@@ -29,6 +50,12 @@ def hawk_pipeline() -> ProcessingPipeline:
         [
             # Windows: name fields exactly as hawk-ece normalizes hawkagentd's unified format
             # (translation table, else uncamel). Verified against live streamd documents.
+            ProcessingItem(
+                identifier="hawk_windows_provider_name_values",
+                transformation=WindowsProviderNameTransformation(),
+                rule_conditions=[LogsourceCondition(product="windows")],
+                field_name_conditions=[IncludeFieldCondition(["Provider_Name", "ProviderName"])],
+            ),
             ProcessingItem(
                 identifier="hawk_windows_unified_fields",
                 transformation=FieldFunctionTransformation({}, windows_unified_field),
