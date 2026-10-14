@@ -68,6 +68,18 @@ filters:
         match:
           command: {regex: '\\Windows\\Installer\\MSI[0-9A-F]+\.tmp,zzzzInvokeManagedCustomActionOutOfProc'}
         evidence: "19 of 19 sampled, 2026-10-06"
+      - name: HAWK vTTAC agent path written into an empty 4688 CommandLine (agent artifact, flagged obfuscated)
+        tier: hawk
+        match:
+          command: {regex: '^C:\\Program Files\\HAWK\\vTTAC\\hawkvttac\.exe$'}
+          command_line_obfuscated: {equals: 'true'}
+        evidence: "111 of 139 events 7d 2026-10-14; a real rundll32 command line still alerts"
+      - name: Windows streaming-device driver setup (streamci.dll)
+        tier: generic
+        match:
+          image: {regex: '^C:\\Windows\\System32\\rundll32\.exe$'}
+          command: {regex: '^rundll32\.exe streamci,StreamingDeviceSetup \{[0-9a-fA-F-]+\},'}
+        evidence: "15 of 139 events 7d 2026-10-14"
 
   - score: e7be6119-fc37-43f0-ad4f-1f3f99be2f9f      # 1909 Copying Sensitive Files with Credential Data
     exclusions:
@@ -121,3 +133,21 @@ filters:
         tier: generic
         match: {command: {regex: '(?i)(LogiLDA\.dll,LogiFetch|PcaSvc\.dll,PcaPatchSdbTask|\\appcompat\\cloudsdb\\apppatch\.sdb)'}}
         evidence: "~185 of 261 events 48h 2026-10-07"
+
+  - score: d7a63acb-1284-49bc-bfea-7771146c8b1c      # 186938 Potential Vcruntime140 DLL Sideloading
+    exclusions:
+      - name: vcruntime140.dll with a valid Microsoft signature (apps shipping the real VC++ runtime - Zoom, Python, Java, WorkSpaces)
+        tier: generic
+        match:
+          image_loaded: {regex: '\\vcruntime140\.dll$'}
+          signature: {regex: '^Microsoft (Corporation|Windows Software Compatibility Publisher|Windows)$'}
+          signature_status: {equals: 'Valid'}
+        evidence: "signed share of 518 events 7d 2026-10-14; unsigned or non-Microsoft copies still alert"
+
+  - score: 9a0b8719-cd3c-4f0a-90de-765a4cb3f5ed      # 177247 Microsoft VBA For Outlook Addin Loaded Via Outlook
+    exclusions:
+      - name: Office's own OUTLVBA.DLL from the Office install folder (Program Files, admin-only)
+        tier: generic
+        match:
+          image_loaded: {regex: '^C:\\Program Files( \(x86\))?\\Microsoft Office\\root\\Office1[0-9]\\ADDINS\\OUTLVBA\.DLL$'}
+        evidence: "118 of 118 events 7d 2026-10-14, 56 hosts, all at case weight; OUTLVBA loaded from anywhere else still alerts"
