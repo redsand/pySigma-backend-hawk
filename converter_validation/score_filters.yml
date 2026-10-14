@@ -88,6 +88,24 @@ filters:
         match: {command: {contains: '\ProgramData\Dell\DTP\DB\SRUDBData'}}
         evidence: "Dell DTP esentutl /y SRUDB.dat /vss, ~all of 961 hits/24h 2026-10-06"
 
+  - score: 1cf465a1-2609-4c15-9b66-c32dbe4bfd67      # 186528 Legitimate Application Writing Files In Uncommon Location
+    exclusions:
+      # esentutl /p writes its repair scratch files into the current directory (System32).
+      # Keyed on the parent, not `command`: PID-reuse enrichment on pre-3.0.11 agents can put
+      # conhost's command line there.
+      - name: Dell TechHub repairing its SRUDB copy (esentutl /p scratch files)
+        tier: generic
+        match:
+          parent_command: {endswith: '\Program Files\Dell\DTP\InstrumentationSubAgent\Dell.TechHub.Instrumentation.SubAgent.exe'}
+          filename: {regex: '^C:\\Windows\\System32\\(SRUDB_[0-9a-f]{32}\.INTEG\.RAW|TEMPREPAIR[0-9]+\.EDB)$'}
+        evidence: "~990 of 1,000 sampled esentutl file-creates, 157 hosts, 7d 2026-10-14"
+      - name: Dell TechHub copying SRUDB.dat into its own ProgramData store
+        tier: generic
+        match:
+          image: {endswith: '\esentutl.exe'}
+          filename: {startswith: 'C:\ProgramData\Dell\DTP\DB\SRUDBData\'}
+        evidence: "esentutl /y SRUDB.dat /d ...\\SRUDBData\\, 10 of 1,000 sampled 7d 2026-10-14"
+
   - score: d7bcd677-645d-4691-a8d4-7a5602b780d1      # 2214 Potential PowerShell Command Line Obfuscation
     exclusions:
       - name: MSI product-code helper Convert-GuidToCompressedGuid
