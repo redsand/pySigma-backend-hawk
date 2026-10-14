@@ -4,7 +4,9 @@ from sigma.processing.conditions import LogsourceCondition, IncludeFieldConditio
 from .windows_unified import windows_unified_field
 from .connectors import connector_field, service_field, CONNECTOR_PRODUCTS, SERVICE_CROSSWALK, DROP_FIELDS, MODIFIED_PROPERTY_FIELDS, ModifiedPropertyPairTransformation
 from sigma.processing.pipeline import ProcessingItem, ProcessingPipeline
+from sigma.processing.transformations.base import DetectionItemTransformation
 from sigma.processing.transformations.values import ValueTransformation
+from sigma.rule import SigmaDetectionItem
 from sigma.types import SigmaString
 
 
@@ -24,6 +26,24 @@ class WindowsProviderNameTransformation(ValueTransformation):
         out = SigmaString("")
         out.s = tuple(parts)
         return out
+
+
+class WindowsSignedTrueTransformation(DetectionItemTransformation):
+    """Sysmon `Signed` and `Signature` both translate to the `signature` column, and Signature comes
+    later in the event, so a signed image carries the signer name there and `Signed=true` is lost
+    (unsigned images keep signature="false"). `Signed: true` is rewritten to `SignatureStatus: Valid`,
+    the closest field that survives; as a filter it excludes no more than upstream intends.
+    `Signed: false` / null keep their meaning on `signature`."""
+
+    def apply_detection_item(self, detection_item: SigmaDetectionItem):
+        if detection_item.field != "Signed" or not detection_item.value:
+            return None
+        if all(str(v.to_plain() if hasattr(v, "to_plain") else v.boolean).lower() == "true" for v in detection_item.value):
+            detection_item.field = "SignatureStatus"
+            detection_item.value = [SigmaString("Valid")]
+            detection_item.modifiers = []
+            self.processing_item_applied(detection_item)
+        return None
 
 
 # TODO: the following code is just an example extend/adapt as required.
@@ -55,6 +75,11 @@ def hawk_pipeline() -> ProcessingPipeline:
                 transformation=WindowsProviderNameTransformation(),
                 rule_conditions=[LogsourceCondition(product="windows")],
                 field_name_conditions=[IncludeFieldCondition(["Provider_Name", "ProviderName"])],
+            ),
+            ProcessingItem(
+                identifier="hawk_windows_signed_true",
+                transformation=WindowsSignedTrueTransformation(),
+                rule_conditions=[LogsourceCondition(product="windows")],
             ),
             ProcessingItem(
                 identifier="hawk_windows_unified_fields",

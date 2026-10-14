@@ -111,3 +111,33 @@ detection:
     # detection logic stays vendor-neutral canonical columns
     det = _leaves(inner[-1])
     assert {l["key"] for l in det} == {"image", "command"}
+
+
+def test_signed_true_becomes_signature_status_valid() -> None:
+    # Signed and Signature share the `signature` column; a signed image keeps the signer name there,
+    # so `Signed: true` can never equal "true" and upstream's signer filters never excluded anything.
+    rule = """
+title: T
+id: 33333333-2222-3333-4444-555555555555
+status: test
+level: high
+logsource:
+    product: windows
+    category: image_load
+detection:
+    selection:
+        ImageLoaded|endswith: '\\vcruntime140.dll'
+    filter_signed_bool:
+        Signed: true
+        Description|endswith: 'C Runtime Library'
+    filter_signed_str:
+        Signed: 'true'
+    filter_unsigned:
+        Signed: 'false'
+    condition: selection and not 1 of filter_*
+"""
+    out = hawkBackend(processing_pipeline=hawk_pipeline()).convert(SigmaCollection.from_yaml(rule))
+    leaves = [(n["key"], n["args"]["str"]["value"]) for n in _leaves(out[0]["rules"]) if n.get("class") == "column"]
+    assert ("signature_status", "Valid") in leaves
+    assert ("signature", "false") in leaves
+    assert ("signature", "true") not in leaves and ("signature", "True") not in leaves
