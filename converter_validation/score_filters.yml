@@ -169,3 +169,38 @@ filters:
         match:
           image_loaded: {regex: '^C:\\Program Files( \(x86\))?\\Microsoft Office\\root\\Office1[0-9]\\ADDINS\\OUTLVBA\.DLL$'}
         evidence: "118 of 118 events 7d 2026-10-14, 56 hosts, all at case weight; OUTLVBA loaded from anywhere else still alerts"
+
+  - score: cc36992a-4671-4f21-a91d-6c2b72a2edf5      # 2045 Suspicious Eventlog Clearing or Configuration Change Activity
+    exclusions:
+      - name: Intel Graphics Software sizing its own Intel-IGS-Logs channels (wevtutil sl ... /ms:)
+        tier: generic
+        match:
+          command: {regex: '(?i)^C:\\Windows\\System32\\wevtutil\.exe sl Intel-IGS-Logs/[A-Za-z]+ /ms:[0-9]+$'}
+        evidence: "765 of 765 events 96h 2026-10-14; wevtutil cl, or sl on any other channel, still alerts"
+
+  - score: a6a39bdb-935c-4f0a-ab77-35f4bbf44d33      # 2279 Potentially Suspicious Powershell Script Execution From Temp Folder
+    exclusions:
+      - name: AWS EC2Launch v2 running user-data scripts from the SYSTEM profile temp folder
+        tier: generic
+        match:
+          command: {regex: '(?i)-Command "\. ''" C:\\Windows\\system32\\config\\systemprofile\\AppData\\Local\\Temp\\EC2Launch[0-9]+\\'}
+        evidence: "254 of 343 events 96h 2026-10-14; the folder is writable by SYSTEM only"
+
+  - score: b8fd0e93-ff58-4cbd-8f48-1c114e342e62      # 163981 Windows Binaries Write Suspicious Extensions
+    exclusions:
+      - name: Group Policy client caching SYSVOL logon/startup scripts
+        tier: generic
+        match:
+          image: {regex: '(?i)^C:\\Windows\\System32\\svchost\.exe$'}
+          filename: {regex: '(?i)^C:\\ProgramData\\Microsoft\\GroupPolicy\\Users\\S-1-5-21-[0-9-]+\\DataStore\\0\\sysvol\\[^\\]+\\Policies\\\{[0-9A-F-]+\}\\(User|Machine)\\Scripts\\'}
+        evidence: "106 of 119 events 96h 2026-10-14; the script on SYSVOL itself is still covered where it is written"
+
+  - score: 736ffa74-5f6f-44ca-94ef-1c0df4f51d2a      # 185946 HackTool - CrackMapExec File Indicators
+    exclusions:
+      # CME writes its output file straight into C:\Windows\Temp (atexec <8 letters>.tmp, wmiexec <uuid>.txt).
+      # The unanchored regexes also match .NET Add-Type / csc compile folders (Temp\abcdefgh\abcdefgh.tmp).
+      - name: files inside a subfolder of C:\Windows\Temp (csc / Add-Type compile folders), not the Temp root CME uses
+        tier: generic
+        match:
+          filename: {regex: '(?i)^C:\\Windows\\Temp\\[^\\]+\\'}
+        evidence: "45 of 45 events 96h 2026-10-14 (PowerShell Add-Type, WorkSpaces scripts); upstream logic fix proposed"
