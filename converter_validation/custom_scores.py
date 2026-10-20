@@ -25,7 +25,25 @@ def leaf(key, desc, value, regex=True, ret="string"):
     }
 
 
+def not_leaf(key, desc, value, regex=True):
+    n = leaf(key, desc, value, regex)
+    n["args"]["comparison"]["value"] = "!="
+    n["rule_id"] = str(uuid.uuid5(uuid.NAMESPACE_URL, f"hawk-custom/not/{key}/{value}"))
+    return n
+
+
 NESSUS_DIR = r"\\ProgramData\\Tenable\\Nessus Agent\\nessus\\mod\\"
+
+# HAWK vTTAC YARA matches (product HAWK-vTTAC-YARA, event 1001). Agents 3.0.9+ add
+# Signature / SignatureStatus (Sysmon vocabulary) for the matched file; HID10236 events carry
+# the rule in threat_name, HID0000 (newer payload) in rule_name. Same family list as
+# hawk-sigma-rules rules/yara/hawk_yara_high_impact_family.yml.
+YARA_HIGH_IMPACT = (r"(?i)(ransom|webshell|web_shell|cobalt_?strike|beacon|sliver|mimikatz|meterpreter|"
+                    r"brute_?ratel|havoc|lockbit|blackcat|alphv|conti|ryuk|akira)")
+YARA_BASE = [leaf("product_name", "Product Name", "HAWK-vTTAC-YARA", regex=False),
+             leaf("vendor_id", "Vendor ID", "1001", regex=False)]
+NOT_CODE_INTEGRITY = [not_leaf("scan_context", "Scan Context", "code_integrity", regex=False),
+                      not_leaf("rule_type", "Rule Type", "code_integrity", regex=False)]
 
 SCORES = {
     # Tenable Nessus Agent plugins (e.g. the inline-PowerShell software inventory
@@ -60,6 +78,52 @@ SCORES = {
                     leaf("parent_current_directory", "Parent Current Directory", NESSUS_DIR),
                     leaf("parent_image", "Parent Image", r"\\Tenable\\Nessus Agent\\nessus-agent-module\.exe$"),
                 ]},
+            ],
+        }],
+    },
+    # Low tier: a YARA match on a file whose Authenticode signature verified (Valid) is far more
+    # often a broad rule hitting a vendor binary than malware - 2026-10-20 CAPE_Hijackloaderstub on
+    # Anthropic claude.exe (Anthropic, PBC / Valid) and MALPEDIA_Win_Snake_Disk_Auto on Adobe
+    # AcroTray.exe. Sized to cancel the path tiers (user-writable +15, outside install dirs +15).
+    # High-impact family names keep their score even when signed (stolen/abused certificates).
+    "HAWK-YARA-SIGNED-VALID": {
+        "hawk_id": "HAWK-YARA-SIGNED-VALID",
+        "filter_name": "HAWK - Reduce YARA Match On A Validly Signed File",
+        "filter_details": ("Demotes a HAWK vTTAC YARA match whose file carries a verified Authenticode signature "
+                           "(SignatureStatus Valid, agents 3.0.9+), unless the rule name is a high-impact family "
+                           "(ransomware, webshell, C2 frameworks, credential dumpers)."),
+        "actions_category_name": "Subtract (-)",
+        "correlation_action": 30,
+        "references": "",
+        "comments": "Hand-authored 2026-10-20 (YARA tiering: low tier). Cases from CAPE_Hijackloaderstub on claude.exe.",
+        "tags": ["hawk-custom", "noise-reduction", "yara"],
+        "rules": [{
+            "id": "and", "key": "And", "selected": "selected",
+            "children": YARA_BASE + [
+                leaf("signature_status", "Signature Status", "Valid", regex=False),
+                not_leaf("rule_name", "Rule Name", YARA_HIGH_IMPACT),
+                not_leaf("threat_name", "Threat Name", YARA_HIGH_IMPACT),
+            ],
+        }],
+    },
+    # High tier boost: the rule's own severity (from its score meta, hawk-yara-severity.h:
+    # >= 80 high, >= 90 critical) on a file that is not validly signed (unsigned, invalid, or an
+    # agent older than 3.0.9 that does not report it). Code Integrity propagations excluded.
+    "HAWK-YARA-HIGH-SEVERITY-UNSIGNED": {
+        "hawk_id": "HAWK-YARA-HIGH-SEVERITY-UNSIGNED",
+        "filter_name": "HAWK - YARA Match From A High-Severity Rule On A File Not Validly Signed",
+        "filter_details": ("HAWK vTTAC YARA match whose rule maps to severity high/critical (Severity 3-4) on a file "
+                           "without a verified signature. Code Integrity propagations are excluded."),
+        "actions_category_name": "Add (+)",
+        "correlation_action": 10,
+        "references": "",
+        "comments": "Hand-authored 2026-10-20 (YARA tiering: high tier boost).",
+        "tags": ["hawk-custom", "yara"],
+        "rules": [{
+            "id": "and", "key": "And", "selected": "selected",
+            "children": YARA_BASE + NOT_CODE_INTEGRITY + [
+                leaf("severity", "Severity", r"^[34]$"),
+                not_leaf("signature_status", "Signature Status", "Valid", regex=False),
             ],
         }],
     },
