@@ -105,6 +105,114 @@ filters:
           image: {endswith: '\esentutl.exe'}
           filename: {startswith: 'C:\ProgramData\Dell\DTP\DB\SRUDBData\'}
         evidence: "esentutl /y SRUDB.dat /d ...\\SRUDBData\\, 10 of 1,000 sampled 7d 2026-10-14"
+      # Some event sources double the backslashes in these columns, hence \\{1,2}.
+      - name: Waves MaxxAudio driver service unpacking MaxxAudio_Data.cab into C:\Windows\Temp (expand.exe)
+        tier: generic
+        match:
+          image: {regex: '(?i)\\{1,2}System32\\{1,2}expand\.exe$'}
+          command: {regex: '(?i)\\{1,2}TEMP\\{1,2}MaxxAudio_Data\.cab -F:DeployTable\.ini '}
+          parent_command: {regex: '(?i)^C:\\{1,2}WINDOWS\\{1,2}System32\\{1,2}DriverStore\\{1,2}FileRepository\\{1,2}wavesapo[0-9a-z]*\.inf_amd64_[0-9a-f]+\\{1,2}WavesSysSvc64\.exe'}
+        evidence: "89 of 601 cases 24h 2026-10-21 (AI review: all benign)"
+      - name: SentinelOne agent refreshing root CAs (certutil -generateSSTFromWU into SystemTemp)
+        tier: generic
+        match:
+          image: {regex: '(?i)\\{1,2}System32\\{1,2}certutil\.exe$'}
+          command: {contains: '-generateSSTFromWU '}
+          parent_command: {regex: '(?i)^C:\\{1,2}Program Files\\{1,2}SentinelOne\\{1,2}Sentinel Agent [0-9.]+\\{1,2}SentinelAgent\.exe$'}
+        evidence: "SentinelOne theme, 31 cases 24h 2026-10-21"
+
+  - score: 9f107a84-532c-41af-b005-8d12a607639f      # 2102 Potentially Suspicious Cabinet File Expansion
+    exclusions:
+      - name: Waves MaxxAudio driver service unpacking MaxxAudio_Data.cab into C:\Windows\Temp (expand.exe)
+        tier: generic
+        match:
+          command: {regex: '(?i)\\{1,2}TEMP\\{1,2}MaxxAudio_Data\.cab -F:DeployTable\.ini '}
+          parent_command: {regex: '(?i)^C:\\{1,2}WINDOWS\\{1,2}System32\\{1,2}DriverStore\\{1,2}FileRepository\\{1,2}wavesapo[0-9a-z]*\.inf_amd64_[0-9a-f]+\\{1,2}WavesSysSvc64\.exe'}
+        evidence: "19 of 89 Waves cases carried it, 24h 2026-10-21"
+
+  - score: 0dba975d-a193-4ed1-a067-424df57570d1      # 164024 Uncommon Network Connection Initiated By Certutil.EXE
+    exclusions:
+      - name: SentinelOne agent refreshing root CAs (certutil -generateSSTFromWU)
+        tier: generic
+        match:
+          command: {contains: '-generateSSTFromWU '}
+          parent_command: {regex: '(?i)^C:\\{1,2}Program Files\\{1,2}SentinelOne\\{1,2}Sentinel Agent [0-9.]+\\{1,2}SentinelAgent\.exe$'}
+        evidence: "SentinelOne theme 24h 2026-10-21"
+
+  - score: 0e7163d4-9e19-4fa7-9be6-000c61aad77a      # 2450 CobaltStrike Named Pipe Pattern Regex
+    exclusions:
+      - name: Dell Update Service (ServiceShell.exe 32-hex pipe names)
+        tier: generic
+        match:
+          image: {regex: '(?i)^C:\\Program Files( \(x86\))?\\Dell\\UpdateService\\ServiceShell\.exe$'}
+          pipe_name: {regex: '^\\[0-9A-Fa-f]{32}$'}
+        evidence: "Dell updater theme, 69 cases 24h 2026-10-21"
+
+  - score: 85adeb13-4fc9-4e68-8a4a-c7cb2c336eb7      # 2453 CobaltStrike Named Pipe Patterns
+    exclusions:
+      - name: Dell Update Service (ServiceShell.exe 32-hex pipe names)
+        tier: generic
+        match:
+          image: {regex: '(?i)^C:\\Program Files( \(x86\))?\\Dell\\UpdateService\\ServiceShell\.exe$'}
+          pipe_name: {regex: '^\\[0-9A-Fa-f]{32}$'}
+        evidence: "Dell updater theme, 69 cases 24h 2026-10-21"
+
+  - score: f7644214-0eb0-4ace-9455-331ec4c09253      # 1439 Kerberos Manipulation
+    exclusions:
+      # 0x10 KDC_ERR_PADATA_TYPE_NOSUPP with PreAuthType 16 (PA-PK-AS-REQ): the client tried certificate
+      # (Windows Hello for Business / smart card) pre-auth first and falls back to password.
+      - name: Kerberos PKINIT attempt not supported (4771 status 0x10, PreAuthType 16)
+        tier: generic
+        match:
+          vendor_id: {equals: '4771'}
+          value: {equals: '0x10'}
+          pre_auth_type: {equals: '16'}
+        evidence: "443 of 443 Kerberos Manipulation hits in 1,000 sampled 4771, 90 users 24h 2026-10-21; 140 of 601 cases"
+
+  - score: 4fdc44df-bfe9-4fcc-b041-68f5a2d3031c      # 41768 Powershell LocalAccount Manipulation
+    exclusions:
+      - name: AWS WorkSpaces config update script (update-apps.ps1, AllSigned)
+        tier: generic
+        match:
+          resource_name: {regex: '(?i)^wsamzn-'}
+          command: {contains: '-ExecutionPolicy AllSigned -WindowStyle Hidden -File "C:\Program Files\Amazon\WorkSpacesConfig\Scripts\'}
+        evidence: "PowerShell theme, 46 cases 24h 2026-10-21"
+
+  - score: 363eccc0-279a-4ccf-a3ab-24c2e63b11fb      # 41787 Powershell Create Scheduled Task
+    exclusions:
+      - name: AWS WorkSpaces config update script (update-apps.ps1, AllSigned)
+        tier: generic
+        match:
+          resource_name: {regex: '(?i)^wsamzn-'}
+          command: {contains: '-ExecutionPolicy AllSigned -WindowStyle Hidden -File "C:\Program Files\Amazon\WorkSpacesConfig\Scripts\'}
+        evidence: "PowerShell theme, 46 cases 24h 2026-10-21"
+
+  - score: 5e6a80c8-2d45-4633-9ef4-fa2671a39c5c      # 173795 Suspicious Parent Double Extension File Execution
+    exclusions:
+      # Chrome started from a "<name>.xlsx.lnk" shortcut keeps --source-shortcut=... in its command
+      # line, so every child it starts (here the SentinelOne native-messaging host) looks double-extension.
+      - name: SentinelOne browser native-messaging host started by Chrome
+        tier: generic
+        match:
+          command: {regex: '(?i)\\SentinelOne\\Sentinel Agent "?[0-9.]+\\SentinelBrowserNativeHost\.exe"? chrome-extension://'}
+        evidence: "26 events in 4 sampled SentinelOne cases 24h 2026-10-21"
+
+  - score: f26eb764-fd89-464b-85e2-dc4a8e6e77b8      # 170316 Suspicious Electron Application Child Processes
+    exclusions:
+      - name: SentinelOne browser native-messaging host started by Chrome
+        tier: generic
+        match:
+          command: {regex: '(?i)\\SentinelOne\\Sentinel Agent "?[0-9.]+\\SentinelBrowserNativeHost\.exe"? chrome-extension://'}
+        evidence: "26 events in 4 sampled SentinelOne cases 24h 2026-10-21"
+
+  - score: 9e3cb244-bdb8-4632-8c90-6079c8f4f16d      # 174090 Important Scheduled Task Deleted or Disabled
+    exclusions:
+      - name: Windows Update Orchestrator toggling its own Resume On Boot task (SYSTEM)
+        tier: generic
+        match:
+          task_name: {equals: '\Microsoft\Windows\UpdateOrchestrator\Resume On Boot'}
+          user_name: {equals: 'System'}
+        evidence: "MusNotification / wuauclt handlers, PowerShell theme 24h 2026-10-21"
 
   - score: d7bcd677-645d-4691-a8d4-7a5602b780d1      # 2214 Potential PowerShell Command Line Obfuscation
     exclusions:

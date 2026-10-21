@@ -206,6 +206,31 @@ SCORES = {
             ],
         }],
     },
+    # GuardDuty re-sends a finding each time its count grows. Recon:EC2/PortProbeUnprotectedPort at
+    # LOW severity (1.0-3.9) on an internet-facing instance is the background scanning of the
+    # internet (Shadowserver, DigitalOcean/Linode VPSs); 2026-10-21 the same finding first seen
+    # 2023-06-07 (Service_Count 11,632) raised a case on every update. A new finding (first report)
+    # or any MEDIUM/HIGH severity, or any other finding type, keeps its score.
+    "HAWK-GUARDDUTY-LOW-PORTPROBE-UPDATE": {
+        "hawk_id": "HAWK-GUARDDUTY-LOW-PORTPROBE-UPDATE",
+        "filter_name": "HAWK - Reduce GuardDuty Low-Severity Port Probe Finding Update",
+        "filter_details": ("Demotes Amazon GuardDuty Recon:EC2/PortProbeUnprotectedPort / PortProbeEMRUnprotectedPort "
+                           "findings of LOW severity (below 4.0) that are updates of an existing finding."),
+        "actions_category_name": "Subtract (-)",
+        "correlation_action": 20,
+        "references": "https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_finding-types-ec2.html",
+        "comments": "Hand-authored 2026-10-21 (case review: GuardDuty theme 43 of 601 cases in 24h).",
+        "tags": ["hawk-custom", "noise-reduction", "aws", "guardduty"],
+        "rules": [{
+            "id": "and", "key": "And", "selected": "selected",
+            "children": [
+                leaf("product_name", "Product Name", "Amazon Guard Duty", regex=False),
+                leaf("Type", "Type", r"^Recon:EC2/PortProbe(EMR)?UnprotectedPort$"),
+                leaf("Severity", "Severity", r"^[0-3](\.[0-9]+)?$"),
+                leaf("finding_is_update", "Finding Is Update", "1", regex=False),
+            ],
+        }],
+    },
     # High tier boost: the rule's own severity (from its score meta, hawk-yara-severity.h:
     # >= 80 high, >= 90 critical) on a file that is not validly signed (unsigned, invalid, or an
     # agent older than 3.0.9 that does not report it). Code Integrity propagations excluded.
