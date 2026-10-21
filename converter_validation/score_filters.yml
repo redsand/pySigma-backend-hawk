@@ -110,9 +110,19 @@ filters:
         tier: generic
         match:
           image: {regex: '(?i)\\{1,2}System32\\{1,2}expand\.exe$'}
-          command: {regex: '(?i)\\{1,2}TEMP\\{1,2}MaxxAudio_Data\.cab -F:DeployTable\.ini '}
+          command: {regex: '(?i)\\{1,2}TEMP\\{1,2}MaxxAudio_Data\.cab "?-F:[^"]+"? C:\\{1,2}WINDOWS\\{1,2}TEMP'}
           parent_command: {regex: '(?i)^C:\\{1,2}WINDOWS\\{1,2}System32\\{1,2}DriverStore\\{1,2}FileRepository\\{1,2}wavesapo[0-9a-z]*\.inf_amd64_[0-9a-f]+\\{1,2}WavesSysSvc64\.exe'}
         evidence: "89 of 601 cases 24h 2026-10-21 (AI review: all benign)"
+      # Sysmon file-create (EID 11) events often arrive without parent_command; expand.exe's own
+      # scratch files (<hex>$dpx$.tmp) written as SYSTEM with this exact command identify the same unpack.
+      - name: Waves MaxxAudio_Data.cab unpack scratch files (expand.exe as SYSTEM, no parent recorded)
+        tier: generic
+        match:
+          image: {regex: '(?i)\\{1,2}System32\\{1,2}expand\.exe$'}
+          command: {regex: '(?i)^C:\\{1,2}Windows\\{1,2}System32\\{1,2}expand\.exe C:\\{1,2}WINDOWS\\{1,2}TEMP\\{1,2}MaxxAudio_Data\.cab "?-F:[^"]+"? C:\\{1,2}WINDOWS\\{1,2}TEMP'}
+          event_username: {equals: 'NT AUTHORITY\SYSTEM'}
+          filename: {regex: '(?i)^C:\\{1,2}Windows\\{1,2}Temp\\{1,2}[0-9a-f]+\$dpx\$\.tmp(\\{1,2}[0-9a-f]+\.tmp)?$'}
+        evidence: "143 of 614 post-push Waves file events still scored 2026-10-21 15:00-15:50 (all -F:<other file> or no parent), 42 hosts"
       - name: SentinelOne agent refreshing root CAs (certutil -generateSSTFromWU into SystemTemp)
         tier: generic
         match:
@@ -126,7 +136,7 @@ filters:
       - name: Waves MaxxAudio driver service unpacking MaxxAudio_Data.cab into C:\Windows\Temp (expand.exe)
         tier: generic
         match:
-          command: {regex: '(?i)\\{1,2}TEMP\\{1,2}MaxxAudio_Data\.cab -F:DeployTable\.ini '}
+          command: {regex: '(?i)\\{1,2}TEMP\\{1,2}MaxxAudio_Data\.cab "?-F:[^"]+"? C:\\{1,2}WINDOWS\\{1,2}TEMP'}
           parent_command: {regex: '(?i)^C:\\{1,2}WINDOWS\\{1,2}System32\\{1,2}DriverStore\\{1,2}FileRepository\\{1,2}wavesapo[0-9a-z]*\.inf_amd64_[0-9a-f]+\\{1,2}WavesSysSvc64\.exe'}
         evidence: "19 of 89 Waves cases carried it, 24h 2026-10-21"
 
