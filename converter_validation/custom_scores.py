@@ -44,7 +44,9 @@ YARA_BASE = [leaf("product_name", "Product Name", "HAWK-vTTAC-YARA", regex=False
              leaf("vendor_id", "Vendor ID", "1001", regex=False)]
 NOT_CODE_INTEGRITY = [not_leaf("scan_context", "Scan Context", "code_integrity", regex=False),
                       not_leaf("rule_type", "Rule Type", "code_integrity", regex=False)]
-CLAUDE_APP_EXE = r"^C:\\Users\\[^\\]+\\AppData\\Local\\AnthropicClaude\\(app-[0-9.]+\\)?claude\.exe$"
+S1_STATIC_ENGINE_DLL = (r"^C:\\(ProgramData\\Sentinel|Program Files\\SentinelOne\\Sentinel Agent [0-9.]+)"
+                        r"\\StaticEngineLibrary\\[^\\]+\\SentinelStaticAI\.dll$")
+CLAUDE_APP_EXE =r"^C:\\Users\\[^\\]+\\AppData\\Local\\AnthropicClaude\\(app-[0-9.]+\\)?claude\.exe$"
 
 SCORES = {
     # Tenable Nessus Agent plugins (e.g. the inline-PowerShell software inventory
@@ -141,6 +143,66 @@ SCORES = {
                     leaf("signature_status", "Signature Status", "Valid", regex=False),
                     not_leaf("signature_status", "Signature Status", "."),  # older agents: not reported
                 ]},
+            ],
+        }],
+    },
+    # SentinelOne's static AI engine library carries detection patterns for the families it
+    # finds, so YARA-Forge rules match it each time SentinelOne rewrites it (fim_change) or loads
+    # it: 2026-10-07..21, 691 hits on 53 hosts, SIGNATURE_BASE_SUSP_Xored_Mozilla_Oct19 and
+    # SIGNATURE_BASE_Reflectiveloader, under both ProgramData\Sentinel\StaticEngineLibrary\StaticAILib_<n>\
+    # and Program Files\SentinelOne\Sentinel Agent <ver>\StaticEngineLibrary\StaticEngineMain\.
+    # High-impact family names keep their score; on agents that report a signature it must be Valid.
+    "HAWK-YARA-SENTINELONE-STATIC-ENGINE": {
+        "hawk_id": "HAWK-YARA-SENTINELONE-STATIC-ENGINE",
+        "filter_name": "HAWK - Reduce YARA Match On The SentinelOne Static AI Engine Library",
+        "filter_details": ("Demotes a HAWK vTTAC YARA match on SentinelStaticAI.dll in SentinelOne's StaticEngineLibrary "
+                           "(C:\\ProgramData\\Sentinel\\ or C:\\Program Files\\SentinelOne\\Sentinel Agent <version>\\). "
+                           "The engine embeds malware patterns. Ransomware, webshell and C2 rule names are kept."),
+        "actions_category_name": "Subtract (-)",
+        "correlation_action": 80,
+        "references": "",
+        "comments": "Hand-authored 2026-10-21. Sized past the HID10236 sum (YARA tiers 30 + legacy malware scores 45).",
+        "tags": ["hawk-custom", "noise-reduction", "yara", "sentinelone"],
+        "rules": [{
+            "id": "and", "key": "And", "selected": "selected",
+            "children": YARA_BASE + [
+                {"id": "or", "key": "Or", "children": [
+                    leaf("filename", "Filename", S1_STATIC_ENGINE_DLL),
+                    leaf("file_path", "File Path", S1_STATIC_ENGINE_DLL),
+                ]},
+                not_leaf("rule_name", "Rule Name", YARA_HIGH_IMPACT),
+                not_leaf("threat_name", "Threat Name", YARA_HIGH_IMPACT),
+                {"id": "or", "key": "Or", "children": [
+                    leaf("signature_status", "Signature Status", "Valid", regex=False),
+                    not_leaf("signature_status", "Signature Status", "."),
+                ]},
+            ],
+        }],
+    },
+    # The agent's byovd_driver_loaded finding fires on the driver file NAME (LOLDrivers list).
+    # Agents before hawkagentd 4f1611c send every one as severity=ALERT; 2026-10-14..21: 208
+    # events on 87 hosts (afd.sys, csc.sys, DellInstrumentation.sys, RtsPer.sys, KslD.sys), all
+    # Priority 1, weight 33.5-56.5 from the legacy malware scores - and not one SHA-256 was a
+    # known vulnerable build. This takes every finding back to ~0; the Sigma rule
+    # hawk-sigma-rules rules/firmware/hawk_firmware_byovd_known_vulnerable_build.yml (6c1f4b8e,
+    # ledger weight 60) adds the weight back when the hash is a known vulnerable/malicious build.
+    "HAWK-FIRMWARE-BYOVD-NAME-MATCH": {
+        "hawk_id": "HAWK-FIRMWARE-BYOVD-NAME-MATCH",
+        "filter_name": "HAWK - Reduce Firmware BYOVD Finding On Driver Name Only",
+        "filter_details": ("Demotes every HAWK agent byovd_driver_loaded finding: the agent matches the driver file name, "
+                           "which on most hosts is the fixed vendor build. The known-vulnerable-build Sigma rule "
+                           "(hash in LOLDrivers KnownVulnerableSamples) restores the weight for a confirmed build."),
+        "actions_category_name": "Subtract (-)",
+        "correlation_action": 55,
+        "references": "https://www.loldrivers.io/",
+        "comments": "Hand-authored 2026-10-21. Pairs with Sigma rule 6c1f4b8e-2d7a-4e93-9b5c-8a0e3f71d2c4 (weight 60).",
+        "tags": ["hawk-custom", "noise-reduction", "firmware", "byovd"],
+        "rules": [{
+            "id": "and", "key": "And", "selected": "selected",
+            "children": [
+                leaf("product_name", "Product Name", "Agent", regex=False),
+                leaf("key", "Key", "HAWKFW", regex=False),
+                leaf("threat_name", "Threat Name", "byovd_driver_loaded", regex=False),
             ],
         }],
     },

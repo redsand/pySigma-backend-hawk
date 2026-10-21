@@ -65,6 +65,15 @@ logsources:
     conditions:
       product_name: HAWK-vTTAC-YARA
       vendor_id: "1001"
+  # HAWK vTTAC agent firmware monitor (HAWKFirmware): one event per finding, threat_name is the
+  # finding type (byovd_driver_loaded, ...); columns file_name, file_path, file_hash_sha256, threat_class.
+  hawk-firmware:
+    match:
+      product: hawk
+      service: firmware
+    conditions:
+      product_name: Agent
+      key: HAWKFW
   antivirus:
     match:
       category: antivirus

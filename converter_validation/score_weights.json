@@ -199,5 +199,14 @@
   "previous_weight": 15.0,
   "score_id": 173492,
   "title": "Powershell Token Obfuscation - Powershell"
+ },
+ "6c1f4b8e-2d7a-4e93-9b5c-8a0e3f71d2c4": {
+  "weight": 60.0,
+  "reason": "2026-10-21: hash-confirmed BYOVD build; pairs with custom HAWK-FIRMWARE-BYOVD-NAME-MATCH (Subtract 55 on every byovd_driver_loaded) so a confirmed build keeps ~+40..60 and a name-only match lands at ~0",
+  "source": "local",
+  "recorded": "2026-10-21",
+  "previous_weight": null,
+  "score_id": null,
+  "title": "HAWK - Known Vulnerable Or Malicious Driver Build Loaded (BYOVD)"
  }
 }
