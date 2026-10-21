@@ -44,6 +44,7 @@ YARA_BASE = [leaf("product_name", "Product Name", "HAWK-vTTAC-YARA", regex=False
              leaf("vendor_id", "Vendor ID", "1001", regex=False)]
 NOT_CODE_INTEGRITY = [not_leaf("scan_context", "Scan Context", "code_integrity", regex=False),
                       not_leaf("rule_type", "Rule Type", "code_integrity", regex=False)]
+CLAUDE_APP_EXE = r"^C:\\Users\\[^\\]+\\AppData\\Local\\AnthropicClaude\\(app-[0-9.]+\\)?claude\.exe$"
 
 SCORES = {
     # Tenable Nessus Agent plugins (e.g. the inline-PowerShell software inventory
@@ -103,6 +104,43 @@ SCORES = {
                 leaf("signature_status", "Signature Status", "Valid", regex=False),
                 not_leaf("rule_name", "Rule Name", YARA_HIGH_IMPACT),
                 not_leaf("threat_name", "Threat Name", YARA_HIGH_IMPACT),
+            ],
+        }],
+    },
+    # Known false positive, scored down until the YARA package fix ships (hawkagentd
+    # HAWK_CAPE_Hijackloaderstub_NoLargeApps): CAPE_Hijackloaderstub matches the Claude desktop app
+    # (Squirrel install, AppData\Local\AnthropicClaude\claude.exe) through its wide "\app-" string.
+    # 2026-10-07..21: 82 hits, 14 hosts, every version 2.26454 - 3.1623, nothing else matched the rule.
+    # Path changes with no version, so it is path-pinned, not hash-pinned. Sized past the largest
+    # observed sum (HID10236 parse: path tiers 30 + legacy malware scores 45 = 76). Agents 3.0.9+ that
+    # report a signature must report Valid (an unsigned claude.exe on a new agent keeps its score).
+    "HAWK-YARA-CAPE-HIJACKLOADER-CLAUDE-APP": {
+        "hawk_id": "HAWK-YARA-CAPE-HIJACKLOADER-CLAUDE-APP",
+        "filter_name": "HAWK - Reduce YARA CAPE_Hijackloaderstub Match On The Claude Desktop App",
+        "filter_details": ("Demotes the CAPE_Hijackloaderstub YARA rule matching the Claude desktop app "
+                           "(C:\\Users\\<user>\\AppData\\Local\\AnthropicClaude\\claude.exe or its app-<version> copy). "
+                           "Known false positive on the Squirrel installer layout; when the agent reports a "
+                           "signature it must be Valid."),
+        "actions_category_name": "Subtract (-)",
+        "correlation_action": 80,
+        "references": "",
+        "comments": "Hand-authored 2026-10-21 (short-term analytic fix ahead of the YARA package change).",
+        "tags": ["hawk-custom", "noise-reduction", "yara"],
+        "rules": [{
+            "id": "and", "key": "And", "selected": "selected",
+            "children": YARA_BASE + [
+                {"id": "or", "key": "Or", "children": [
+                    leaf("rule_name", "Rule Name", "CAPE_Hijackloaderstub", regex=False),
+                    leaf("threat_name", "Threat Name", "CAPE_Hijackloaderstub", regex=False),
+                ]},
+                {"id": "or", "key": "Or", "children": [
+                    leaf("filename", "Filename", CLAUDE_APP_EXE),
+                    leaf("file_path", "File Path", CLAUDE_APP_EXE),
+                ]},
+                {"id": "or", "key": "Or", "children": [
+                    leaf("signature_status", "Signature Status", "Valid", regex=False),
+                    not_leaf("signature_status", "Signature Status", "."),  # older agents: not reported
+                ]},
             ],
         }],
     },
