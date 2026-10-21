@@ -208,5 +208,14 @@
   "previous_weight": null,
   "score_id": null,
   "title": "HAWK - Known Vulnerable Or Malicious Driver Build Loaded (BYOVD)"
+ },
+ "T1085-0001": {
+  "weight": 5.0,
+  "reason": "2026-10-21: double-counted with 1687 Rundll32 Internet Connection (+10) on the same Sysmon EID3 events; 156 hits/24h, 32 cases, ~87% LogiLDA/PcaSvc; 13% carry no command line so exclusions cannot reach them. Non-Sigma score: set live with set_weight (sync does not manage it).",
+  "source": "local",
+  "recorded": "2026-10-21",
+  "previous_weight": 18.0,
+  "score_id": 503,
+  "title": "Rundll32.exe Connection to the Internet"
  }
 }
