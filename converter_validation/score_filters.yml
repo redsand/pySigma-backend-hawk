@@ -270,6 +270,23 @@ filters:
         match: {command: {regex: '(?i)(LogiLDA\.dll,LogiFetch|PcaSvc\.dll,PcaPatchSdbTask|\\appcompat\\cloudsdb\\apppatch\.sdb)'}}
         evidence: "~185 of 261 events 48h 2026-10-07"
 
+  - score: t1059-0006                                # 748 Quick Execution of a Series of Suspicious Commands (custom score; applied with apply_filters_live.py)
+    exclusions:
+      - name: Windows provisioning (ICD) registry snapshot - reg export of HKLM\Software\Microsoft\Provisioning to SystemTemp
+        tier: generic
+        match: {command: {regex: '(?i)\\reg\.exe"? export HKLM\\Software\\Microsoft\\Provisioning "?[a-z]:\\Windows\\SystemTemp\\ICD_[^\\]+\\regBefore\.txt"?$'}}
+        evidence: "case 624:5215 2026-10-22 (Dell driver add_Intelppm.bat -> provisioning cmdlets)"
+
+  - score: fd877b94-9bb5-4191-bb25-d79cbd93c167      # 1919 Dumping of Sensitive Hives Via Reg.EXE
+    exclusions:
+      # Upstream '\system' also matches the reg.exe path itself (C:\Windows\System32\REG.EXE) and
+      # C:\Windows\SystemTemp, so any HKLM export from a full-path command line fires. A key under
+      # HKLM\SOFTWARE is never the SAM / SECURITY / SYSTEM hive.
+      - name: reg save/export of a key under HKLM\SOFTWARE (not a credential hive)
+        tier: generic
+        match: {command: {regex: '(?i)\s(save|export)\s+"?(hklm|hkey_local_machine)\\software(\\|"|\s|$)'}}
+        evidence: "32 of 32 events 24h 2026-10-22 (Windows provisioning ICD regBefore.txt, 7 hosts); upstream logic fix proposed"
+
   - score: d7a63acb-1284-49bc-bfea-7771146c8b1c      # 186938 Potential Vcruntime140 DLL Sideloading
     exclusions:
       - name: vcruntime140.dll with a valid Microsoft signature (apps shipping the real VC++ runtime - Zoom, Python, Java, WorkSpaces)
