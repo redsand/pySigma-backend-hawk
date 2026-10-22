@@ -225,6 +225,9 @@ SCORES = {
     # known vulnerable build. This takes every finding back to ~0; the Sigma rule
     # hawk-sigma-rules rules/firmware/hawk_firmware_byovd_known_vulnerable_build.yml (6c1f4b8e,
     # ledger weight 60) adds the weight back when the hash is a known vulnerable/malicious build.
+    # RETIRED 2026-10-22 (live 234659 disabled): firmware lines are now excluded from the generic
+    # malware/priority scores it was cancelling (payload != 'HAWKFirmware: ' on 21 scores), so it
+    # would only cut a confirmed build's +60 to +5. Do not re-enable.
     "HAWK-FIRMWARE-BYOVD-NAME-MATCH": {
         "hawk_id": "HAWK-FIRMWARE-BYOVD-NAME-MATCH",
         "filter_name": "HAWK - Reduce Firmware BYOVD Finding On Driver Name Only",

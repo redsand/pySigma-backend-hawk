@@ -202,7 +202,7 @@
  },
  "6c1f4b8e-2d7a-4e93-9b5c-8a0e3f71d2c4": {
   "weight": 60.0,
-  "reason": "2026-10-21: hash-confirmed BYOVD build; pairs with custom HAWK-FIRMWARE-BYOVD-NAME-MATCH (Subtract 55 on every byovd_driver_loaded) so a confirmed build keeps ~+40..60 and a name-only match lands at ~0",
+  "reason": "2026-10-21: hash-confirmed BYOVD build. 2026-10-22: firmware lines no longer score in the generic malware/priority scores and the name-only demotion (HAWK-FIRMWARE-BYOVD-NAME-MATCH, 234659) is disabled, so this +60 is the whole firmware score",
   "source": "local",
   "recorded": "2026-10-21",
   "previous_weight": null,
@@ -217,5 +217,32 @@
   "previous_weight": 18.0,
   "score_id": 503,
   "title": "Rundll32.exe Connection to the Internet"
+ },
+ "2a0a2e0d-b61e-47b9-b8d6-35fb0699a34b": {
+  "weight": 60.0,
+  "reason": "2026-10-22: dbx shrank = revoked bootloader re-trusted (BlackLotus step); known bad on its own; firmware is scored only by known-bad firmware rules",
+  "source": "local",
+  "recorded": "2026-10-22",
+  "previous_weight": null,
+  "score_id": null,
+  "title": "HAWK - Secure Boot Revocation List (dbx) Rolled Back"
+ },
+ "d2eaf950-edeb-40d6-9cf8-32fee59f27cc": {
+  "weight": 60.0,
+  "reason": "2026-10-22: agent's correlated per-scan verdict suspicious (boot_tamper); known bad on its own; firmware is scored only by known-bad firmware rules",
+  "source": "local",
+  "recorded": "2026-10-22",
+  "previous_weight": null,
+  "score_id": null,
+  "title": "HAWK - Firmware Story Verdict Suspicious Boot Tampering"
+ },
+ "dc0e0349-c7b3-426c-a4c9-850b2b39d0e8": {
+  "weight": 50.0,
+  "reason": "2026-10-22: BCD changed to testsigning/nointegritychecks/disableelam; once per change; firmware is scored only by known-bad firmware rules",
+  "source": "local",
+  "recorded": "2026-10-22",
+  "previous_weight": null,
+  "score_id": null,
+  "title": "HAWK - Unsafe Boot Configuration Flags Enabled"
  }
 }
