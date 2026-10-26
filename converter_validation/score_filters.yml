@@ -139,6 +139,26 @@ filters:
           parent_command: {regex: '(?i)^C:\\{1,2}Program Files\\{1,2}SentinelOne\\{1,2}Sentinel Agent [0-9.]+\\{1,2}SentinelAgent\.exe$'}
         evidence: "SentinelOne theme, 31 cases 24h 2026-10-21"
 
+  - score: eca91c7c-9214-47b9-b4c5-cb1d7e4f2350      # 1473 Uncommon Outbound Kerberos Connection - Security
+    exclusions:
+      # The rule has no direction check. On domain controllers WFP credits inbound KDC traffic
+      # (Receive/Accept layer, protocol 0) to whatever process holds a raw socket - the HAWK agent's
+      # packet capture - so it reads as hawkvttac.exe "connecting" to port 88.
+      - name: inbound (Receive/Accept) port-88 traffic on a KDC, not an outbound connection
+        tier: generic
+        match:
+          direction: {equals: 'Inbound'}
+        evidence: "122 of 122 events in 2026-10-26 cases (all Direction=Inbound, Receive/Accept, hawkvttac.exe raw socket on DCs; 4 cases)"
+
+  - score: e54979bd-c5f9-4d6c-967b-a04b19ac4c74      # 1678 Uncommon Outbound Kerberos Connection
+    exclusions:
+      # Zscaler Client Connector tunnels the user's traffic, Kerberos included, so the tunnel process owns the socket.
+      - name: Zscaler Client Connector tunnel (ZSATunnel.exe)
+        tier: generic
+        match:
+          image: {regex: '(?i)^C:\\Program Files( \(x86\))?\\Zscaler\\ZSATunnel\\ZSATunnel\.exe$'}
+        evidence: "5 of 5 events in 2026-10-26 cases (4 cases; double-counted with legacy score 1003)"
+
   - score: 78d5cab4-557e-454f-9fb9-a222bd0d5edc      # 180757 External Remote SMB Logon from Public IP
     exclusions:
       # Was a hand edit of the live score (ip_src_geoip_cc2 != INT); kept here so a sync keeps it.
