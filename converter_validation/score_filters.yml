@@ -339,3 +339,22 @@ filters:
         match:
           filename: {regex: '(?i)^C:\\Windows\\Temp\\[^\\]+\\'}
         evidence: "45 of 45 events 96h 2026-10-14 (PowerShell Add-Type, WorkSpaces scripts); upstream logic fix proposed"
+
+  - score: 9c5037d1-c568-49b3-88c7-9846a5bdc2be      # 2386 Suspicious Run Key from Download
+    exclusions:
+      # Case 645:1448: vendor installers run from the user's Downloads (Adobe Creative Cloud,
+      # RICOH CloudStream) register the app they just installed under C:\Program Files, which only
+      # an elevated process can write. A Run value launching a script host / LOLBin from there,
+      # or any user-writable path, still alerts.
+      - name: Run value launching a program installed under C:\Program Files (not a script host or LOLBin)
+        tier: generic
+        match:
+          details: {regex: '(?i)^"?[a-z]:\\Program Files( \(x86\))?\\(?!.*\.\.\\)(?!.*(\\|\s|^)(cmd|powershell|pwsh|wscript|cscript|mshta|rundll32|regsvr32|msiexec|conhost)(\.exe)?(\s|"|$))'}
+        evidence: "15 of 15 events 7d 2026-10-26 (11 RICOH CloudStream, 4 Adobe Creative Cloud; 7 hosts)"
+      # Sysmon EID 12 is a key create/delete or value delete: it never writes the value that
+      # Windows runs at logon (that is EID 13 SetValue / EID 14 rename), so on its own it is not persistence.
+      - name: Sysmon EID 12 key create/delete (no Run value written)
+        tier: generic
+        match:
+          vendor_id: {equals: '12'}
+        evidence: "6 of 15 events 7d 2026-10-26 (installers creating the Run key / deleting their old value)"
