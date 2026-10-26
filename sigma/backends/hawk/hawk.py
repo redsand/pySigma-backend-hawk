@@ -689,7 +689,8 @@ class hawkBackend(TextQueryBackend):
         if isinstance(node, ConditionNOT):
             if not node.args:
                 raise NotImplementedError("NOT condition without arguments is not supported.")
-            return self._generate_node(node.args[0], not_node=True)
+            # Toggle, not set: NOT under an already-negated branch cancels out (not (a and not b) == not a or b)
+            return self._generate_node(node.args[0], not_node=not not_node)
         if isinstance(node, ConditionFieldEqualsValueExpression):
             if isinstance(node.value, SigmaFieldReference):
                 first_col = self.field_mapper.map(node.field)
@@ -726,7 +727,9 @@ class hawkBackend(TextQueryBackend):
                 children.append(child)
         if not children:
             return None
-        return {"id": "or", "key": "Or", "children": self._dedupe_children(children)}
+        # De Morgan, as for ConditionOR: NOT(v1 OR v2) == (NOT v1) AND (NOT v2)
+        op = "and" if not_node else "or"
+        return {"id": op, "key": op.capitalize(), "children": self._dedupe_children(children)}
 
     def _leaf_node(self, key: str, raw_value: Any, not_node: bool, contains: bool = False) -> dict:
         # Null values map to the empty() IS-NULL function node; `|exists` is its inverse.

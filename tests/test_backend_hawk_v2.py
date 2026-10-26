@@ -210,6 +210,66 @@ def test_not_of_contains_inverts_comparison() -> None:
     assert _str_arg(img)["value"] == "\\\\safe\\.exe$"
 
 
+def _parent_of(node, leaf_key: str):
+    """The And/Or node whose direct children include a leaf on `leaf_key`."""
+    if isinstance(node, list):
+        return next((p for c in node for p in [_parent_of(c, leaf_key)] if p), None)
+    if not isinstance(node, dict):
+        return None
+    kids = node.get("children", [])
+    if any(isinstance(k, dict) and k.get("key") == leaf_key for k in kids):
+        return node
+    return next((p for k in kids for p in [_parent_of(k, leaf_key)] if p), None)
+
+
+def test_not_inside_a_negated_filter_keeps_its_own_polarity() -> None:
+    # "not (filter_dir and not filter_temp)": a file under the filtered dir is dropped UNLESS it is in the
+    # temp sub-folder. Setting instead of toggling the NOT flag turned filter_temp into "!=" too, so the
+    # exclusion fired for every file outside the temp folder and the rule went blind to Temp payloads.
+    rec = _convert(_rule("""
+        selection:
+            CommandLine|contains: 'foo'
+        filter_dir:
+            Image|startswith: 'C:\\Windows\\'
+        filter_temp:
+            Image|startswith: 'C:\\Windows\\Temp\\'
+        condition: selection and not (filter_dir and not filter_temp)
+    """))
+    leaves = [l for l in _leaves(rec["rules"]) if l.get("key") == "image"]
+    by_value = {_str_arg(l)["value"]: l["args"]["comparison"]["value"] for l in leaves}
+    assert by_value == {"^C:\\\\Windows\\\\": "!=", "^C:\\\\Windows\\\\Temp\\\\": "="}
+    assert _parent_of(rec["rules"], "image")["key"] == "Or"
+
+
+def test_double_not_is_the_positive_match() -> None:
+    # not (not filter) must require the filter, not exclude it.
+    rec = _convert(_rule("""
+        selection:
+            CommandLine|contains: 'foo'
+        filter:
+            Image|endswith: '\\x.exe'
+        condition: selection and not (not filter)
+    """))
+    assert _leaf(rec, "image")["args"]["comparison"]["value"] == "="
+
+
+def test_negated_modifier_expansion_is_and_of_inequalities() -> None:
+    # |windash expands one value into its dash variants. Excluding it means excluding EVERY variant:
+    # (v1 != x) AND (v2 != x). Joined with Or, any event differs from at least one variant, so the
+    # filter excluded nothing.
+    rec = _convert(_rule("""
+        selection:
+            Image|endswith: '\\x.exe'
+        filter:
+            CommandLine|windash|contains: '-safe'
+        condition: selection and not filter
+    """))
+    parent = _parent_of(rec["rules"], "command")
+    assert all(k["args"]["comparison"]["value"] == "!=" for k in parent["children"] if k.get("key") == "command")
+    assert len([k for k in parent["children"] if k.get("key") == "command"]) > 1
+    assert parent["key"] == "And"
+
+
 def test_xml_values_accept_entity_encoded_feed() -> None:
     rec = _convert(_rule("""
         selection:
