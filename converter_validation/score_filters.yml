@@ -113,16 +113,24 @@ filters:
           command: {regex: '(?i)\\{1,2}TEMP\\{1,2}MaxxAudio_Data\.cab "?-F:[^"]+"? C:\\{1,2}WINDOWS\\{1,2}TEMP'}
           parent_command: {regex: '(?i)^C:\\{1,2}WINDOWS\\{1,2}System32\\{1,2}DriverStore\\{1,2}FileRepository\\{1,2}wavesapo[0-9a-z]*\.inf_amd64_[0-9a-f]+\\{1,2}WavesSysSvc64\.exe'}
         evidence: "89 of 601 cases 24h 2026-10-21 (AI review: all benign)"
-      # Sysmon file-create (EID 11) events often arrive without parent_command; expand.exe's own
-      # scratch files (<hex>$dpx$.tmp) written as SYSTEM with this exact command identify the same unpack.
-      - name: Waves MaxxAudio_Data.cab unpack scratch files (expand.exe as SYSTEM, no parent recorded)
+      # Sysmon file-create (EID 11) events often arrive without parent_command, and on pre-3.0.11 agents
+      # `command` is often another process's (PID reuse: conhost.exe 0xffffffff -ForceV1), so neither can be
+      # required. expand.exe's own scratch files (<hex>$dpx$.tmp) written as SYSTEM into C:\Windows\Temp are
+      # the Waves unpack; the expand.exe invocation itself stays covered by 2102 (process creation).
+      - name: Waves MaxxAudio_Data.cab unpack scratch files (expand.exe as SYSTEM, $dpx$.tmp in C:\Windows\Temp)
         tier: generic
         match:
           image: {regex: '(?i)\\{1,2}System32\\{1,2}expand\.exe$'}
-          command: {regex: '(?i)^C:\\{1,2}Windows\\{1,2}System32\\{1,2}expand\.exe C:\\{1,2}WINDOWS\\{1,2}TEMP\\{1,2}MaxxAudio_Data\.cab "?-F:[^"]+"? C:\\{1,2}WINDOWS\\{1,2}TEMP'}
           event_username: {equals: 'NT AUTHORITY\SYSTEM'}
           filename: {regex: '(?i)^C:\\{1,2}Windows\\{1,2}Temp\\{1,2}[0-9a-f]+\$dpx\$\.tmp(\\{1,2}[0-9a-f]+\.tmp)?$'}
-        evidence: "143 of 614 post-push Waves file events still scored 2026-10-21 15:00-15:50 (all -F:<other file> or no parent), 42 hosts"
+        evidence: "351 of 351 expand.exe events in 2026-10-26 cases (53 cases, 72 hosts; 345 with conhost's command line)"
+      - name: certutil -generateSSTFromWU writing RootCAs.sst into SystemTemp (SYSTEM)
+        tier: generic
+        match:
+          image: {regex: '(?i)\\{1,2}System32\\{1,2}certutil\.exe$'}
+          event_username: {equals: 'NT AUTHORITY\SYSTEM'}
+          filename: {regex: '(?i)^C:\\{1,2}Windows\\{1,2}SystemTemp\\{1,2}[0-9a-f]{32}\\{1,2}RootCAs\.sst$'}
+        evidence: "9 of 9 certutil events in 2026-10-26 cases (command line was conhost's, so the SentinelOne exclusion below missed them)"
       - name: SentinelOne agent refreshing root CAs (certutil -generateSSTFromWU into SystemTemp)
         tier: generic
         match:
@@ -130,6 +138,45 @@ filters:
           command: {contains: '-generateSSTFromWU '}
           parent_command: {regex: '(?i)^C:\\{1,2}Program Files\\{1,2}SentinelOne\\{1,2}Sentinel Agent [0-9.]+\\{1,2}SentinelAgent\.exe$'}
         evidence: "SentinelOne theme, 31 cases 24h 2026-10-21"
+
+  - score: 2f78da12-f7c7-430b-8b19-a28f269b77a3      # 152206 Disable Windows Event Logging Via Registry
+    exclusions:
+      # Driver packages ship event manifests whose analytic/debug channels default to disabled; DrvInst
+      # writes Enabled=0 for them at install (the same case as the rule's wevtutil filter). Microsoft-Windows-*
+      # channels are left out on purpose, so turning off a built-in log still alerts.
+      - name: DrvInst.exe registering a driver's own (non-Microsoft) event channels as disabled
+        tier: generic
+        match:
+          image: {regex: '(?i)^C:\\{1,2}Windows\\{1,2}System32\\{1,2}DrvInst\.exe$'}
+          object: {regex: '(?i)\\{1,2}WINEVT\\{1,2}Channels\\{1,2}(?!Microsoft-Windows-)[^\\]+\\{1,2}Enabled$'}
+        evidence: "9 of 9 events in 2026-10-26 cases (Intel SST / Intel NPU / Dsp driver channels, 6 cases)"
+
+  - score: 36803969-5421-41ec-b92f-8500f79c23b0      # 2356 Potential Persistence Via GlobalFlags
+    exclusions:
+      # Box Drive's MSI sets FLG_MONITOR_SILENT_PROCESS_EXIT (0x200) for its own UI process. The SilentProcessExit
+      # MonitorProcess write an abuse also needs is a separate selection of this rule and still alerts.
+      - name: Box Drive installer (msiexec) setting IFEO GlobalFlag for BoxUI.exe
+        tier: generic
+        match:
+          image: {regex: '(?i)\\{1,2}(System32|SysWOW64)\\{1,2}msiexec\.exe$'}
+          object: {regex: '(?i)\\{1,2}Image File Execution Options\\{1,2}BoxUI\.exe\\{1,2}GlobalFlag$'}
+        evidence: "3 of 3 events in 2026-10-26 cases (2 cases)"
+
+  - score: 78bc5783-81d9-4d73-ac97-59f6db4f72a8      # 1422 Relevant Anti-Virus Signature Keywords In Application Log
+    exclusions:
+      # Pre-3.0.11 agents append other events' Sysmon fields to the payload by PID; Outlook's own DNS lookup of
+      # Office's webshell.suite.office.com then matches the "Webshell" keyword on Outlook's Application log events.
+      - name: Outlook Application log event carrying Outlook's webshell.suite.office.com DNS lookup
+        tier: generic
+        match:
+          payload: {regex: '(?i)^\S+ \S+ \S+ Outlook: \d+: (?=.*\| QueryName=webshell\.suite\.office\.com \|)'}
+        evidence: "5 of 5 events in 2026-10-26 cases (2 hosts); the only keyword match was QueryName=webshell.suite.office.com"
+      # Was a hand edit of the live score (product_name != Microsoft-Windows-RestartManager); kept here so a sync keeps it.
+      - name: Restart Manager session events
+        tier: generic
+        match:
+          product_name: {equals: 'Microsoft-Windows-RestartManager'}
+        evidence: "carried over from the live score logic, 2026-10-26"
 
   - score: 9f107a84-532c-41af-b005-8d12a607639f      # 2102 Potentially Suspicious Cabinet File Expansion
     exclusions:
