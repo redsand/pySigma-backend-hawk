@@ -376,6 +376,24 @@ filters:
           image: {regex: '(?i)^C:\\Windows\\System32\\svchost\.exe$'}
           filename: {regex: '(?i)^C:\\ProgramData\\Microsoft\\GroupPolicy\\Users\\S-1-5-21-[0-9-]+\\DataStore\\0\\sysvol\\[^\\]+\\Policies\\\{[0-9A-F-]+\}\\(User|Machine)\\Scripts\\'}
         evidence: "106 of 119 events 96h 2026-10-14; the script on SYSVOL itself is still covered where it is written"
+      # Both folders are writable only by TrustedInstaller / SYSTEM services (AppX deployment, Windows Update);
+      # upstream already filters single packages (Clipchamp, PowerShellPreview) under WindowsApps.
+      - name: svchost (AppX deployment / Windows Update) writing package scripts into WindowsApps or SoftwareDistribution\Download
+        tier: generic
+        match:
+          image: {regex: '(?i)^C:\\Windows\\(System32|SysWOW64)\\svchost\.exe$'}
+          filename: {regex: '(?i)^C:\\(Program Files( \(x86\))?\\WindowsApps\\|Windows\\SoftwareDistribution\\Download\\)'}
+        evidence: "4 of 4 events in 2026-10-26 cases (UUS SleepStudyReportGenerator.bat, Intel Arc SetupEventChannels.ps1; 3 cases)"
+
+  - score: 4aa6040b-3f28-44e3-a769-9208e5feb5ec      # 180260 Suspicious Rundll32 Execution With Image Extension
+    exclusions:
+      # The WebClient service runs "rundll32 davclnt.dll,DavSetCookie <host> <url>" for every WebDAV request; the URL
+      # is often a folder.jpg thumbnail. The DLL is davclnt.dll, not an image; WebDAV itself has its own rules.
+      - name: WebDAV client (davclnt.dll,DavSetCookie) fetching an image over WebDAV
+        tier: generic
+        match:
+          command: {regex: '(?i)^"?(C:\\Windows\\System32\\)?rundll32(\.exe)?"? C:\\Windows\\System32\\davclnt\.dll,DavSetCookie '}
+        evidence: "4 of 4 events in 2026-10-26 cases (3 cases, share thumbnails)"
 
   - score: 736ffa74-5f6f-44ca-94ef-1c0df4f51d2a      # 185946 HackTool - CrackMapExec File Indicators
     exclusions:
