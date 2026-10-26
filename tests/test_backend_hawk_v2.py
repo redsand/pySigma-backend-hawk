@@ -253,6 +253,59 @@ def test_double_not_is_the_positive_match() -> None:
     assert _leaf(rec, "image")["args"]["comparison"]["value"] == "="
 
 
+def _ip_matches(rec: dict, key: str, text: str) -> bool:
+    """Does any positive ("=") leaf on `key` match `text` the way hawk-ece does: IPv4 CIDR membership
+    for a/b values on IPv4 text, else case-insensitive regex search?"""
+    import ipaddress
+    import re as _re
+    for leaf in _leaves(rec["rules"]):
+        if leaf.get("key") != key:
+            continue
+        v = _str_arg(leaf)["value"]
+        if "/" in v and ":" not in v and ":" not in text:
+            if ipaddress.ip_address(text) in ipaddress.ip_network(v):
+                return True
+        elif _str_arg(leaf).get("regex") and _re.search(v, text, _re.I):
+            return True
+    return False
+
+
+def test_cidr_covers_ipv6_and_ipv4_mapped_text() -> None:
+    # hawk-ece only does IPv4 CIDR membership. "fe80::/10" and IPv4-mapped "::ffff:10.1.2.3" were plain
+    # strings to it, so "External Remote SMB Logon from Public IP" fired on ::1 and every local-range
+    # filter in SigmaHQ (DestinationIp|cidr) let IPv6 / dual-stack addresses through.
+    rec = _convert(_rule("""
+        selection:
+            DestinationIp|cidr:
+                - '10.0.0.0/8'
+                - '::1/128'
+                - 'fe80::/10'
+                - '2603:1056::/36'
+        condition: selection
+    """, logsource="product: windows|category: network_connection"))
+    key = "ip_dst"
+    for text in ("10.200.3.4", "::ffff:10.200.3.4", "::1", "0000:0000:0000:0000:0000:0000:0000:0001",
+                 "fe80::1c2:3:4:5", "FEBF::1", "2603:1056::5", "2603:1056:fff:1::1", "2603:1056:0:0:0:0:0:1"):
+        assert _ip_matches(rec, key, text), text
+    for text in ("11.0.0.1", "::ffff:11.0.0.1", "::2", "fec0::1", "fe7f::1", "2603:1056:1000::1", "2603:1057::1"):
+        assert not _ip_matches(rec, key, text), text
+
+
+def test_negated_cidr_excludes_every_form() -> None:
+    # As a filter, each form must be excluded: (cidr != ..) AND (regex !~ ..), never Or.
+    rec = _convert(_rule("""
+        selection:
+            Image|endswith: '\\\\x.exe'
+        filter:
+            DestinationIp|cidr: '10.0.0.0/8'
+        condition: selection and not filter
+    """, logsource="product: windows|category: network_connection"))
+    parent = _parent_of(rec["rules"], "ip_dst")
+    ip = [k for k in parent["children"] if k.get("key") == "ip_dst"]
+    assert parent["key"] == "And" and len(ip) == 2
+    assert all(k["args"]["comparison"]["value"] == "!=" for k in ip)
+
+
 def test_negated_modifier_expansion_is_and_of_inequalities() -> None:
     # |windash expands one value into its dash variants. Excluding it means excluding EVERY variant:
     # (v1 != x) AND (v2 != x). Joined with Or, any event differs from at least one variant, so the

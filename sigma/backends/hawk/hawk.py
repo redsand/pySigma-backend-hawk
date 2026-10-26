@@ -119,6 +119,89 @@ _QUANTILES_INPUTS: Dict[str, Any] = {
 }
 
 
+_HEX = "0123456789abcdef"
+
+
+def _nibble_classes(lo: int, hi: int, width: int) -> list:
+    """Per-hex-digit character sets of a prefix-aligned range [lo, hi] (a cartesian product of digits)."""
+    out = []
+    for i in range(width - 1, -1, -1):
+        a, b = (lo >> (4 * i)) & 0xF, (hi >> (4 * i)) & 0xF
+        out.append(_HEX[a:b + 1])
+    return out
+
+
+def _cls(chars: str) -> str:
+    if len(chars) == 1:
+        return chars
+    return "[0-9a-f]" if chars == _HEX else "[" + chars + "]"
+
+
+def _hextet_regex(lo: int, hi: int) -> str:
+    """One IPv6 group as written in text, for every value in [lo, hi]: without leading zeros (RFC 5952)
+    or zero-padded (exploded form)."""
+    c = _nibble_classes(lo, hi, 4)
+    terms = []
+    for i in range(4):
+        if i and any("0" not in c[j] for j in range(i)):
+            break  # a shorter form needs every stripped leading digit to be able to be 0
+        head = c[i] if i == 3 else c[i].replace("0", "")
+        if head:
+            terms.append(_cls(head) + "".join(_cls(x) for x in c[i + 1:]))
+    return "0{0,3}" + (terms[0] if len(terms) == 1 else "(?:" + "|".join(terms) + ")")
+
+
+def _ipv4_regex(net) -> str:
+    """Dotted-quad regex for an IPv4 network (explicit alternation for the one partial octet)."""
+    lo, hi = int(net.network_address), int(net.broadcast_address)
+    parts = []
+    for i in (3, 2, 1, 0):
+        a, b = (lo >> (8 * i)) & 0xFF, (hi >> (8 * i)) & 0xFF
+        if a == b:
+            parts.append(str(a))
+        elif a == 0 and b == 255:
+            parts.append(r"\d{1,3}")
+        else:
+            parts.append("(?:" + "|".join(str(v) for v in range(a, b + 1)) + ")")
+    return r"\.".join(parts)
+
+
+def _ipv6_regex(net) -> str:
+    """Regex over the textual (RFC 5952 compressed or uncompressed) forms of addresses in an IPv6 network.
+    A /128 is matched as its compressed or exploded text. Otherwise each constrained group is matched as
+    written (no leading zeros); a constrained group that can be 0 may also start the "::" run."""
+    if net.prefixlen == 128:
+        a = net.network_address
+        return "^(?:" + re.escape(a.compressed) + "|" + re.escape(a.exploded) + ")$"
+    lo, hi = int(net.network_address), int(net.broadcast_address)
+    groups = []
+    for g in range(-(-net.prefixlen // 16)):
+        shift = 16 * (7 - g)
+        groups.append(((lo >> shift) & 0xFFFF, (hi >> shift) & 0xFFFF))
+    out = "^"
+    closers = 0
+    for idx, (a, b) in enumerate(groups):
+        grp = _hextet_regex(a, b) + ":"
+        if a == 0:
+            # this group (and the zero run after it) may be compressed to "::"
+            out += "(?:" + ("::" if idx == 0 else ":") + "|" + grp
+            closers += 1
+        else:
+            out += grp
+    return out + ")" * closers
+
+
+def _cidr_text_regexes(cidr: str) -> list:
+    """Regexes for address text the engine's IPv4-only CIDR match cannot see: IPv6 networks, and
+    IPv4 networks written IPv4-mapped (::ffff:a.b.c.d), as Windows reports dual-stack sockets."""
+    import ipaddress
+
+    net = ipaddress.ip_network(cidr, strict=False)
+    if net.version == 6:
+        return [_ipv6_regex(net)]
+    return [r"^(?:::ffff:|0:0:0:0:0:ffff:)" + _ipv4_regex(net) + "$"]
+
+
 class hawkBackend(TextQueryBackend):
     name: ClassVar[str] = "HAWK"
     formats: ClassVar[Dict[str, str]] = {"default": "HAWK score JSON records"}
@@ -709,6 +792,8 @@ class hawkBackend(TextQueryBackend):
                 }
             if isinstance(node.value, SigmaExpansion):
                 return self._expand_sigma_expansion(node.field, node.value, not_node)
+            if isinstance(node.value, SigmaCIDRExpression):
+                return self._cidr_node(node.field, node.value, not_node)
             return self._leaf_node(node.field, node.value, not_node)
         if isinstance(node, ConditionValueExpression):
             # Sigma keywords match anywhere in the event: substring semantics on payload.
@@ -716,6 +801,17 @@ class hawkBackend(TextQueryBackend):
                 return self._expand_sigma_expansion("payload", node.value, not_node, contains=True)
             return self._leaf_node("payload", node.value, not_node, contains=True)
         raise NotImplementedError(f"Unsupported node type: {type(node)}")
+
+    def _cidr_node(self, field: str, value: SigmaCIDRExpression, not_node: bool) -> dict:
+        # hawk-ece's CIDR match is IPv4-only: an IPv6 network or an IPv4-mapped address (::ffff:10.1.2.3)
+        # never matches a/b text, so "not in fe80::/10" or "not in 10.0.0.0/8" excluded nothing for them.
+        cidr = str(value.cidr)
+        children = [] if ":" in cidr else [self._leaf_node(field, value, not_node)]
+        children += [self._leaf_node(field, SigmaRegularExpression(rx), not_node) for rx in _cidr_text_regexes(cidr)]
+        if len(children) == 1:
+            return children[0]
+        op = "and" if not_node else "or"
+        return {"id": op, "key": op.capitalize(), "children": self._dedupe_children(children)}
 
     def _expand_sigma_expansion(
         self, field: str, expansion: SigmaExpansion, not_node: bool, contains: bool = False
