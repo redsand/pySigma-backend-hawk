@@ -139,6 +139,15 @@ filters:
           parent_command: {regex: '(?i)^C:\\{1,2}Program Files\\{1,2}SentinelOne\\{1,2}Sentinel Agent [0-9.]+\\{1,2}SentinelAgent\.exe$'}
         evidence: "SentinelOne theme, 31 cases 24h 2026-10-21"
 
+  - score: 78d5cab4-557e-454f-9fb9-a222bd0d5edc      # 180757 External Remote SMB Logon from Public IP
+    exclusions:
+      # Was a hand edit of the live score (ip_src_geoip_cc2 != INT); kept here so a sync keeps it.
+      - name: source the GeoIP enrichment marks as internal
+        tier: generic
+        match:
+          ip_src_geoip_cc2: {equals: 'INT'}
+        evidence: "carried over from the live score logic, 2026-10-26"
+
   - score: 2f78da12-f7c7-430b-8b19-a28f269b77a3      # 152206 Disable Windows Event Logging Via Registry
     exclusions:
       # Driver packages ship event manifests whose analytic/debug channels default to disabled; DrvInst
