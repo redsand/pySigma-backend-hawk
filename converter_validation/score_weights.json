@@ -253,5 +253,50 @@
   "previous_weight": 15.0,
   "score_id": 173492,
   "title": "Powershell Token Obfuscation - Powershell"
+ },
+ "5683b1e2-0729-4723-bffa-850555f26208": {
+  "weight": 40.0,
+  "reason": "2026-10-27: 0 hits in 31,167 ThreatLocker events (7d denies/ringfences + targeted permit pulls, 1,101 hosts); escalation on its own",
+  "source": "local",
+  "recorded": "2026-10-27",
+  "previous_weight": null,
+  "score_id": null,
+  "title": "HAWK - Office Application Launched A Shell Or Script Host (ThreatLocker)"
+ },
+ "7e7d2c29-138b-4072-abbf-70e68c11ea1a": {
+  "weight": 40.0,
+  "reason": "2026-10-27: 0 hits in 31,167 ThreatLocker events (7d denies/ringfences + targeted permit pulls, 1,101 hosts); escalation on its own",
+  "source": "local",
+  "recorded": "2026-10-27",
+  "previous_weight": null,
+  "score_id": null,
+  "title": "HAWK - Web Browser Launched A Script Host Or LOLBin (ThreatLocker)"
+ },
+ "d3484adb-8585-405b-a55b-b0bc3327c913": {
+  "weight": 40.0,
+  "reason": "2026-10-27: 0 hits in 31,167 ThreatLocker events (7d denies/ringfences + targeted permit pulls, 1,101 hosts); escalation on its own",
+  "source": "local",
+  "recorded": "2026-10-27",
+  "previous_weight": null,
+  "score_id": null,
+  "title": "HAWK - MSDT Launched A Program Or Connected Out (ThreatLocker)"
+ },
+ "82311e06-2302-4681-91e5-08f3bdf896d4": {
+  "weight": 40.0,
+  "reason": "2026-10-27: 0 hits after the HUNT Specops exclusion (13 before) in 31,167 ThreatLocker events (7d denies/ringfences + targeted permit pulls, 1,101 hosts); escalation on its own",
+  "source": "local",
+  "recorded": "2026-10-27",
+  "previous_weight": null,
+  "score_id": null,
+  "title": "HAWK - Untrusted DLL Loaded Into LSASS Or The Logon UI (ThreatLocker)"
+ },
+ "f5a34ea8-7bcb-460a-8a73-c2145c86a411": {
+  "weight": 40.0,
+  "reason": "2026-10-27: 1 hit (Microsoft ResetWindowsSearchBox.ps1 from Downloads, denied) in 31,167 ThreatLocker events (7d denies/ringfences + targeted permit pulls, 1,101 hosts); escalation on its own",
+  "source": "local",
+  "recorded": "2026-10-27",
+  "previous_weight": null,
+  "score_id": null,
+  "title": "HAWK - Script Run From A Download Or Mail Attachment Folder (ThreatLocker)"
  }
 }
