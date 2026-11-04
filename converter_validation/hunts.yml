@@ -1,0 +1,87 @@
+# Daily threat hunts (hunt_explore.py). Generic behaviours only: this repo is public, so no customer
+# hosts, users, IPs or names here. Each hunt is an AND of `all` clauses; a clause is
+# {column: [values]} and matches when the column contains any value (Explore phrase match, the same
+# form the converter uses). `not` clauses are excluded. Activity the hunt finds that no Sigma/HAWK
+# detection matched is a coverage gap: a candidate for a new score.
+#
+# Columns must be searchable in Explore (live/explore_indexed_fields.json); the hunt fails loud if not.
+# `expect_hits: true` marks a positive control: zero hits means the search is broken, not quiet.
+hunts:
+  - name: "Control: process creation is searchable"
+    expect_hits: true
+    all:
+      - product_name: ['Sysmon', 'Security-Auditing']
+      - vendor_id: ['1', '4688']
+      - image: ['\explorer.exe', '\svchost.exe', '\conhost.exe']
+
+  - name: Office application spawning a shell or script host
+    mitre: T1204.002
+    all:
+      - product_name: ['Sysmon', 'Security-Auditing']
+      - vendor_id: ['1', '4688']
+      - parent_image: ['\winword.exe', '\excel.exe', '\powerpnt.exe', '\outlook.exe', '\onenote.exe', '\msaccess.exe']
+      - image: ['\powershell.exe', '\pwsh.exe', '\cmd.exe', '\wscript.exe', '\cscript.exe', '\mshta.exe', '\rundll32.exe', '\regsvr32.exe']
+
+  - name: Encoded or in-memory PowerShell
+    mitre: T1059.001
+    report_by: parent_image
+    all:
+      - product_name: ['Sysmon', 'Security-Auditing']
+      - vendor_id: ['1', '4688']
+      - image: ['\powershell.exe', '\pwsh.exe']
+      - command: [' -enc ', ' -encodedcommand ', 'FromBase64String', 'DownloadString', 'IEX (', 'Invoke-Expression']
+
+  - name: Built-in tool used to download a file
+    mitre: T1105
+    all:
+      - product_name: ['Sysmon', 'Security-Auditing']
+      - vendor_id: ['1', '4688']
+      - command: ['-urlcache', 'bitsadmin /transfer', 'Invoke-WebRequest', 'Start-BitsTransfer', 'certutil -f', 'curl -o', 'wget -O']
+
+  - name: Executable started from a user-writable folder
+    mitre: T1204
+    all:
+      - product_name: ['Sysmon', 'Security-Auditing']
+      - vendor_id: ['1', '4688']
+      - image: ['\AppData\Local\Temp\', '\Users\Public\', '\Windows\Temp\', '\Downloads\', '\AppData\Roaming\']
+    not:
+      - image: ['\AppData\Local\Temp\is-', '\AppData\Local\Temp\{']   # Inno/MSI setup stubs
+
+  - name: Remote access or tunnelling tool
+    mitre: T1219
+    all:
+      - product_name: ['Sysmon', 'Security-Auditing']
+      - vendor_id: ['1', '4688']
+      - image: ['\anydesk.exe', '\screenconnect', '\atera', '\ngrok.exe', '\rclone.exe', '\cloudflared.exe', '\tailscale', '\rustdesk.exe', '\splashtop', '\meshagent']
+
+  # "minidump" alone is every crashpad handler's command line (browsers, Logitech, Snagit...), so a dump
+  # only counts when it names lsass.
+  - name: LSASS memory dump command
+    mitre: T1003.001
+    report_by: parent_image
+    all:
+      - product_name: ['Sysmon', 'Security-Auditing']
+      - vendor_id: ['1', '4688']
+      - command: ['lsass']
+      - command: ['comsvcs', 'MiniDump', 'procdump', '-ma ', 'rdrleakdiag', 'createdump']
+
+  - name: Credential theft tooling or AD database copy
+    mitre: T1003.003
+    report_by: parent_image
+    all:
+      - product_name: ['Sysmon', 'Security-Auditing']
+      - vendor_id: ['1', '4688']
+      - command: ['sekurlsa', 'lsadump', 'ntds.dit', 'vssadmin create shadow', 'ntdsutil', 'reg save hklm\sam', 'reg save hklm\security']
+
+  - name: Scripted HTTP client user agent
+    mitre: T1071.001
+    all:
+      - http_user_agent: ['python-requests', 'python-urllib', 'Go-http-client', 'curl/', 'Wget/', 'WindowsPowerShell', 'libwww-perl']
+
+  - name: Linux download-and-execute or reverse shell
+    mitre: T1059.004
+    # Phrase match drops punctuation, so "| sh" would match any command with the word sh: keep to
+    # values whose words alone are specific, and to Linux events.
+    all:
+      - vendor_name: ['Linux']
+      - command: ['/dev/tcp/', 'chmod +x /tmp/', 'chmod 777 /tmp/', 'nc -e', 'ncat -e', 'base64 -d', 'curl -fsSL', 'wget -qO-']

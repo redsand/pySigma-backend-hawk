@@ -8,7 +8,9 @@ Steps (all read-only unless --execute):
   5. plan against production: new rules, refreshes (logic or exclusions changed; hold list skipped),
      deprecated-in-Sigma scores still enabled -> reports/daily/<date>/*.txt and summary.md
   6. --execute: push new rules (they arrive DISABLED), push refreshes (enabled state, weights and
-     LOUD titles are kept by sync_scores.py), disable deprecated scores; each verified against /scores
+     LOUD titles are kept by sync_scores.py), disable deprecated scores; each verified against /scores.
+     Refreshes of ENABLED scores are backtested first (72h); any not clearly under GATE_PER_HOUR is
+     held back in refresh_held.txt for a person instead of being pushed.
 
     python daily_sync.py              # update + plan, prints what would change
     python daily_sync.py --execute    # same, then pushes it
@@ -34,6 +36,7 @@ from score_filters import content_dir
 HERE = Path(__file__).resolve().parent
 SIGMA = (HERE / ".." / ".." / "sigma").resolve()
 DIRS = "rules,rules-emerging-threats,rules-threat-hunting,rules-compliance,deprecated"
+GATE_PER_HOUR = 10  # same line the weekly backtest uses for "stay disabled or tune first"
 urllib3.disable_warnings()
 
 
@@ -122,6 +125,21 @@ def main() -> int:
         if new:
             r = run([sys.executable, "sync_scores.py", "--select", out / "new.txt", "--batch-size", str(max(100, len(new))), "--execute", "--verify"], timeout=7200)
             md.append("- new: " + r.strip().splitlines()[-2])
+        if refresh:
+            # Unattended pushes change live detections, so an enabled score whose new logic the backtest
+            # cannot clear (>= GATE_PER_HOUR, unbounded, error) is held back for a person, never pushed.
+            run([sys.executable, "backtest_explore.py", "--select", out / "refresh.txt", "--hours", "72",
+                 "--out", out / "backtest.json"], timeout=7200)
+            bt = {e["hawk_id"].lower(): e for e in json.loads((out / "backtest.json").read_text(encoding="utf-8"))["results"]}
+            held = [r for r in refresh if r["enabled"] == "True" and (bt.get(r["hawk_id"].lower(), {}).get("status") != "ok"
+                    or bt[r["hawk_id"].lower()].get("hits_per_hour", 0) >= GATE_PER_HOUR)]
+            held_ids = {r["hawk_id"].lower() for r in held}
+            refresh = [r for r in refresh if r["hawk_id"].lower() not in held_ids]
+            (out / "refresh.txt").write_text("".join(r["hawk_id"].lower() + "\n" for r in refresh), encoding="utf-8")
+            (out / "refresh_held.txt").write_text("".join(h + "\n" for h in held_ids), encoding="utf-8")
+            md += [f"- held back (enabled, backtest not clear, 72h): {len(held)}"]
+            md += [f"  - {r['score_id']} {r['title']}: {bt.get(r['hawk_id'].lower(), {}).get('status', 'missing')} "
+                   f"{bt.get(r['hawk_id'].lower(), {}).get('hits_per_hour', '')}/h" for r in held]
         if refresh:
             r = run([sys.executable, "sync_scores.py", "--select", out / "refresh.txt", "--batch-size", str(max(100, len(refresh))), "--execute", "--verify"], timeout=7200)
             md.append("- refresh: " + r.strip().splitlines()[-2])
