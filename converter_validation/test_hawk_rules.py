@@ -20,12 +20,18 @@ POSITIVES = {
                                              "filename": r"D:\share\tools\run.exe", "scan_context": "process_create"},
     "17d4e717-1423-4c74-8a40-bf037e38c154": {"rule_name": "MALPEDIA_Win_Qakbot_Auto",
                                              "filename": r"C:\Users\bob\Downloads\inv.dll", "scan_context": "fim_change"},
+    # an unsigned DLL that Code Integrity blocked is the injection this rule exists for
+    "2f8102f8-3284-4a04-8fd2-948bb729bbf5": {"rule_name": "CodeIntegrity_inj.dll", "filename": r"C:\Users\bob\AppData\Local\Temp\inj.dll",
+                                             "scan_context": "code_integrity", "signature_status": "Unavailable"},
 }
 NEGATIVES = [  # benign shapes seen 2026-10-05 must not match
     {"rule_name": "SIGNATURE_BASE_Reflectiveloader", "filename": r"C:\Program Files\SentinelOne\Sentinel Agent 26.1.2.177\InProcessClient64.dll", "scan_context": "fim_change"},
     {"rule_name": "MALPEDIA_Win_Snake_Disk_Auto", "filename": r"C:\Program Files (x86)\Adobe\Acrobat DC\Acrobat\acrotray.exe", "scan_context": "process_create"},
     {"rule_name": "SIGNATURE_BASE_Suspicious_Powershell_Webdownload_1", "filename": r"C:\ProgramData\HAWK\Auto_Update.bat", "scan_context": "fim_change"},
     {"rule_name": "CodeIntegrity_vulkan-1.dll", "filename": r"C:\Users\bob\AppData\Local\x\vulkan-1.dll", "scan_context": "code_integrity"},
+    # a validly signed AMSI provider failing a signing-level check: thousands of rows a week from one laptop
+    {"rule_name": "CodeIntegrity_SentinelAmsi64.dll", "filename": r"C:\Program Files\SentinelOne\Sentinel Agent\SentinelAmsi64.dll",
+     "scan_context": "code_integrity", "signature_status": "Valid"},
 ]
 
 
