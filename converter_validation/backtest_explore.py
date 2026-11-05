@@ -6,7 +6,7 @@ probe_indexed_fields.py -> live/explore_indexed_fields.json). Indexed text colum
 UPPER BOUND on what the engine would match:
 
   * exact values   -> phrase query on the analyzed field (case-insensitive, token order kept)
-  * regex values   -> AND of phrase queries for the literal fragments of the pattern; a pattern
+  * regex values   -> AND of (phrase OR wildcard) for the literal fragments of the pattern; a pattern
                       with alternation/classes contributes nothing (dropped)
   * != / NOT       -> NOT (...) when expressible, else dropped
   * non-indexed column, function node -> dropped
@@ -71,6 +71,21 @@ def is_indexed(col: str) -> bool:
 def q_phrase(field: str, value: str) -> str:
     v = str(value).replace("\\", "\\\\").replace('"', '\\"')
     return f'{field}:"{v}"'
+
+
+LUCENE_SPECIAL = re.compile(r'([+\-=&|><!(){}\[\]^"~*?:\\/])')
+
+
+def q_frag(field: str, frag: str, anchored_start: bool, anchored_end: bool) -> str:
+    """A regex fragment is usually PART of a value or token: "^CodeIntegrity_" must find
+    "CodeIntegrity_SentinelAmsi64.dll", which a phrase never does (a keyword field compares the
+    whole value; a text field keeps "codeintegrity_sentinelamsi64.dll" as one token). That made
+    prefix rules score 0 while firing millions of times, so a wildcard is OR-ed in on every open
+    side. A fragment with a space cannot be one wildcard term; it keeps the phrase only."""
+    if " " in frag:
+        return q_phrase(field, frag)
+    w = ("" if anchored_start else "*") + LUCENE_SPECIAL.sub(r"\\\1", frag) + ("" if anchored_end else "*")
+    return f"({q_phrase(field, frag)} OR {field}:{w})"
 
 
 def regex_fragments(rx: str):
@@ -138,7 +153,9 @@ def leaf_clause(leaf: dict):
                 frags = [f for f in frags if len(f) >= 4 and f.lower() not in (".exe", ".dll", "http", "https")]
             if not frags:
                 return None
-            clause = " AND ".join(q_phrase(field, f) for f in frags)
+            clause = " AND ".join(q_frag(field, f, i == 0 and str(val).startswith("^"),
+                                         i == len(frags) - 1 and str(val).endswith("$") and not str(val).endswith("\\$"))
+                                  for i, f in enumerate(frags))
             clause = f"({clause})" if len(frags) > 1 else clause
         elif t in ("int", "float", "uns", "double"):
             if op in (">", ">=", "<", "<="):

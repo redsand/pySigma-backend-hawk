@@ -91,7 +91,7 @@ def main() -> int:
     errs = HERE / "reports" / "converted.errors.json"
     nerr = len(json.loads(errs.read_text(encoding="utf-8"))) if errs.exists() else 0
     md += ["## Conversion", f"{len(conv)} rules, {nerr} conversion errors", ""]
-    for t in ("test_hawk_rules.py", "test_score_filters.py"):
+    for t in ("test_hawk_rules.py", "test_score_filters.py", "test_backtest_explore.py"):
         res = run([sys.executable, t]).strip().splitlines()
         md.append(f"- {t}: {res[-1] if res else 'ok'}")
     md.append("")
