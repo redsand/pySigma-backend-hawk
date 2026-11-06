@@ -57,6 +57,7 @@ def main() -> int:
                 h[col] = h.pop(raw)
     gate = {"product_name": "HAWK-vTTAC-YARA", "vendor_id": "1001", "resource_name": "h1"}
     fails = 0
+    failed_ids = []
     for r in recs:
         logic = strip_functions(r["rules"])
         real = [h for h in hits if node(logic, h)]
@@ -65,9 +66,13 @@ def main() -> int:
         neg_bad = [n["rule_name"] for n in NEGATIVES if node(logic, dict(gate, **n))]
         ok = pos_ok is not False and not neg_bad
         fails += not ok
+        if not ok:
+            failed_ids.append(r["hawk_id"].lower())
         print(f"{'OK  ' if ok else 'FAIL'} {r['filter_name'][:72]}\n"
               f"      real hits matched: {len(real)}/{len(hits)} {sorted({h.get('rule_name') for h in real})}"
               f" | positive control: {pos_ok} | benign shapes matched: {neg_bad or 'none'}")
+    # daily_sync holds back exactly these rules and pushes the rest (one bad rule must not block all)
+    (HERE / "reports" / "hawk_rules_failed.txt").write_text("".join(h + "\n" for h in failed_ids), encoding="utf-8")
     return 1 if fails else 0
 
 

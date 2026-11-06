@@ -4,13 +4,15 @@ Steps (all read-only unless --execute):
   1. git pull --ff-only this repo and the private content repo (siem/hawk-sigma-rules)
   2. fetch SigmaHQ (`upstream`) into ../../sigma, fast-forward master, push it to the fork (`origin`)
   3. convert SigmaHQ + our rules (content repo rules/) -> reports/converted.jsonl
-  4. run test_hawk_rules.py and test_score_filters.py (stop on failure)
+  4. run the tests: a rule failing test_hawk_rules.py is held back alone (not pushed, exit 2 so the mail
+     says FAILED); any other test failure stops the run
   5. plan against production: new rules, refreshes (logic or exclusions changed; hold list skipped),
      deprecated-in-Sigma scores still enabled -> reports/daily/<date>/*.txt and summary.md
   6. --execute: push new rules (they arrive DISABLED), push refreshes (enabled state, weights and
      LOUD titles are kept by sync_scores.py), disable deprecated scores; each verified against /scores.
      Refreshes of ENABLED scores are backtested first (72h); any not clearly under GATE_PER_HOUR is
      held back in refresh_held.txt for a person instead of being pushed.
+  7. list what is imported but disabled (not firing), with a 72h backtest, so enabling is a visible decision
 
     python daily_sync.py              # update + plan, prints what would change
     python daily_sync.py --execute    # same, then pushes it
@@ -37,12 +39,15 @@ HERE = Path(__file__).resolve().parent
 SIGMA = (HERE / ".." / ".." / "sigma").resolve()
 DIRS = "rules,rules-emerging-threats,rules-threat-hunting,rules-compliance,deprecated"
 GATE_PER_HOUR = 10  # same line the weekly backtest uses for "stay disabled or tune first"
+DISABLED_LIST_DAYS = 14
 urllib3.disable_warnings()
 
 
-def run(cmd, cwd=HERE, timeout=3600):
+def run(cmd, cwd=HERE, timeout=3600, check=True):
     print("$", " ".join(str(c) for c in cmd), flush=True)
     p = subprocess.run([str(c) for c in cmd], cwd=cwd, capture_output=True, text=True, timeout=timeout)
+    if not check:
+        return p.returncode, p.stdout
     if p.returncode != 0:
         raise SystemExit(f"FAILED ({p.returncode}): {' '.join(map(str, cmd))}\n{p.stdout[-3000:]}\n{p.stderr[-3000:]}")
     return p.stdout
@@ -91,10 +96,23 @@ def main() -> int:
     errs = HERE / "reports" / "converted.errors.json"
     nerr = len(json.loads(errs.read_text(encoding="utf-8"))) if errs.exists() else 0
     md += ["## Conversion", f"{len(conv)} rules, {nerr} conversion errors", ""]
-    for t in ("test_hawk_rules.py", "test_score_filters.py", "test_backtest_explore.py"):
+    # A failing rule test holds back that rule only (2026-11-05: one rule blocked 37 new ones for a day).
+    # A failure that names no rule is a broken test or input, and stops the run as before.
+    failed_file = HERE / "reports" / "hawk_rules_failed.txt"
+    failed_file.unlink(missing_ok=True)
+    rc, res = run([sys.executable, "test_hawk_rules.py"], check=False)
+    failed = set(lines(failed_file))
+    if rc != 0 and not failed:
+        raise SystemExit(f"FAILED ({rc}): test_hawk_rules.py named no failing rule\n{res[-3000:]}")
+    md.append(f"- test_hawk_rules.py: {len(failed)} failing rule(s) held back" if failed else "- test_hawk_rules.py: all pass")
+    for t in ("test_score_filters.py", "test_backtest_explore.py", "test_daily_hold.py"):
         res = run([sys.executable, t]).strip().splitlines()
         md.append(f"- {t}: {res[-1] if res else 'ok'}")
     md.append("")
+    if failed:
+        md += [f"## Held back: failed rule tests: {len(failed)} (fix the rule; see daily_last.log)", ""]
+        md += [f"- {conv.get(h, {}).get('filter_name', h)}  ({conv.get(h, {}).get('_source', '?')})" for h in sorted(failed)]
+        md.append("")
 
     # 5. plan
     for f in glob.glob(str(HERE / "reports" / "refresh_group_*")):
@@ -103,10 +121,10 @@ def main() -> int:
     hold = set(lines(HERE / "reports" / "refresh_hold_all.txt"))
     diff = HERE / "reports" / "refresh_group_001_diff.csv"
     rows = list(csv.DictReader(diff.open(encoding="utf-8"))) if diff.exists() else []
-    refresh = [r for r in rows if r["hawk_id"].lower() not in hold]
+    refresh = [r for r in rows if r["hawk_id"].lower() not in hold and r["hawk_id"].lower() not in failed]
     live = {str(x.get("hawk_id")).lower(): x for x in requests.get(BASE + "scores?recursive=true&format=json",
             headers={"Authorization": "Bearer " + api_key()}, timeout=900, verify=False).json()["results"] if x.get("hawk_id")}
-    new = [c for h, c in conv.items() if h not in live and not c["_source"].startswith("deprecated")]
+    new = [c for h, c in conv.items() if h not in live and h not in failed and not c["_source"].startswith("deprecated")]
     dep = [h for h, c in conv.items() if c["_source"].startswith("deprecated") and live.get(h, {}).get("enabled")]
     (out / "new.txt").write_text("".join(c["hawk_id"].lower() + "\n" for c in new), encoding="utf-8")
     (out / "refresh.txt").write_text("".join(r["hawk_id"].lower() + "\n" for r in refresh), encoding="utf-8")
@@ -152,10 +170,42 @@ def main() -> int:
     else:
         md += ["Dry run. To push all of the above: `python daily_sync.py --execute`", ""]
 
+    md += disabled_section(conv, live, new, out)
     (out / "summary.md").write_text("\n".join(md), encoding="utf-8")
     print("\n".join(md))
     print(f"\nreport: {out / 'summary.md'}")
-    return 0
+    # non-zero so the mail says FAILED: a held-back rule needs a person, even though the rest went out
+    return 2 if failed else 0
+
+
+def disabled_section(conv, live, new, out):
+    """Imported is not firing: new rules arrive disabled and wait for a person. List them with a 72h
+    backtest so the decision is in the mail (2026-11-05: 41 sat disabled and nobody saw them).
+    Everything disabled is counted; our own rules and the last DISABLED_LIST_DAYS of imports are listed."""
+    off = {h: x for h, x in live.items() if h in conv and not x.get("enabled") and not conv[h]["_source"].startswith("deprecated")}
+    off.update({c["hawk_id"].lower(): {"score_id": "new", "filter_name": c["filter_name"], "date_added": "9999"} for c in new})
+    cutoff = (datetime.date.today() - datetime.timedelta(days=DISABLED_LIST_DAYS)).isoformat()
+    listed = sorted((h for h, x in off.items() if conv[h]["_source"].startswith("hawk/") or str(x.get("date_added") or "") >= cutoff),
+                    key=lambda h: off[h]["filter_name"])
+    by_src = {}
+    for h in off:
+        by_src[conv[h]["_source"].split("/")[0]] = by_src.get(conv[h]["_source"].split("/")[0], 0) + 1
+    md = [f"## Imported but disabled (not firing): {len(off)}", "",
+          "By source: " + ", ".join(f"{k} {v}" for k, v in sorted(by_src.items())), "",
+          f"Our rules and imports from the last {DISABLED_LIST_DAYS} days ({len(listed)}); "
+          "72h backtest is an upper bound, and 0 only means quiet if the rule's data reaches Explore:", ""]
+    if listed:
+        (out / "disabled_listed.txt").write_text("".join(h + "\n" for h in listed), encoding="utf-8")
+        rc, _ = run([sys.executable, "backtest_explore.py", "--select", out / "disabled_listed.txt", "--hours", "72",
+                     "--out", out / "disabled_backtest.json"], timeout=7200, check=False)
+        p = out / "disabled_backtest.json"
+        bt = {e["hawk_id"].lower(): e for e in json.loads(p.read_text(encoding="utf-8"))["results"]} if rc == 0 and p.exists() else {}
+        for h in listed:
+            e = bt.get(h, {})
+            rate = f"{e['hits_per_hour']}/h" if e.get("status") == "ok" else e.get("status", "backtest failed")
+            md.append(f"- {off[h]['score_id']} {off[h]['filter_name']}: {rate}")
+    md.append("")
+    return md
 
 
 if __name__ == "__main__":
