@@ -305,7 +305,7 @@
   "source": "local",
   "recorded": "2026-11-06",
   "previous_weight": 20.0,
-  "score_id": null,
+  "score_id": 234855,
   "title": "HAWK - Teams Call Reported by a User as a Security Risk"
  },
  "2fcccce3-fb33-4b04-a014-a97b915ce4e5": {
@@ -314,7 +314,7 @@
   "source": "local",
   "recorded": "2026-11-06",
   "previous_weight": 11.0,
-  "score_id": null,
+  "score_id": 234854,
   "title": "HAWK - Teams One-on-One Chat From a *.onmicrosoft.com Account"
  }
 }
