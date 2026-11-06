@@ -298,5 +298,23 @@
   "previous_weight": null,
   "score_id": null,
   "title": "HAWK - Script Run From A Download Or Mail Attachment Folder (ThreatLocker)"
+ },
+ "271e0106-29cf-43d5-9882-13c739f20c6e": {
+  "weight": 30.0,
+  "reason": "2026-11-06: a user-reported Teams call scores -4 from priority-4 suppression; 30 puts it at 26, inside the 20-40 Moderate Risk Incident notification. All 9 reports in 8 days were vishing (caller 'IT SUPPORT' etc.); converter gave 20 (16 final, no incident)",
+  "source": "local",
+  "recorded": "2026-11-06",
+  "previous_weight": 20.0,
+  "score_id": null,
+  "title": "HAWK - Teams Call Reported by a User as a Security Risk"
+ },
+ "2fcccce3-fb33-4b04-a014-a97b915ce4e5": {
+  "weight": 25.0,
+  "reason": "2026-11-06: one-on-one Teams chat from a *.onmicrosoft.com account; 0 of 7,130 chat events in a 7-day baseline, so it must open an incident on its own (-4 base + 25 = 21, Moderate Risk Incident); converter gave 11",
+  "source": "local",
+  "recorded": "2026-11-06",
+  "previous_weight": 11.0,
+  "score_id": null,
+  "title": "HAWK - Teams One-on-One Chat From a *.onmicrosoft.com Account"
  }
 }
