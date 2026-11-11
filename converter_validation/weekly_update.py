@@ -36,6 +36,31 @@ SIGMA = (HERE / ".." / ".." / "sigma").resolve()
 DIRS = "rules,rules-emerging-threats,rules-threat-hunting,rules-compliance,deprecated"
 
 
+def _logic(node):
+    """Rule tree without the per-conversion rule_id values."""
+    if isinstance(node, list):
+        return [_logic(c) for c in node]
+    if isinstance(node, dict):
+        return {k: _logic(v) for k, v in node.items() if k != "rule_id"}
+    return node
+
+
+def duplicate_ids(conv_path):
+    """hawk_ids converted from both SigmaHQ and our rules: (same logic, ours differs)."""
+    by_id = {}
+    for line in Path(conv_path).read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            rec = json.loads(line)
+            by_id.setdefault(rec["hawk_id"].lower(), []).append(rec)
+    same, override = [], []
+    for hid, recs in sorted(by_id.items()):
+        if len(recs) < 2:
+            continue
+        logic = {json.dumps(_logic(r["rules"]), sort_keys=True) for r in recs}
+        (same if len(logic) == 1 else override).append(hid)
+    return same, override
+
+
 def run(cmd, cwd=HERE, timeout=3600):
     print("$", " ".join(str(c) for c in cmd), flush=True)
     p = subprocess.run([str(c) for c in cmd], cwd=cwd, capture_output=True, text=True, timeout=timeout)
@@ -81,11 +106,14 @@ def main() -> int:
     md += ["## Conversion", f"{len(conv)} records, {nerr} conversion errors", ""]
     # our rules (siem/hawk-sigma-rules rules/) contributed upstream keep their id; once SigmaHQ merges one, both copies
     # convert to the same hawk_id - delete our copy (e.g. SigmaHQ PR #6439).
-    import collections as _c
-    _ids = _c.Counter(json.loads(l)["hawk_id"].lower() for l in conv_path.read_text(encoding="utf-8").splitlines() if l.strip())
-    _dups = sorted(h for h, n in _ids.items() if n > 1)
-    if _dups:
-        md += ["### ACTION: rule ids present in both SigmaHQ and hawk-sigma-rules (delete our copy)", ""] + [f"- {h}" for h in _dups] + [""]
+    # A copy of ours that still converts differently is an override of the SigmaHQ rule (we do not wait for
+    # the upstream merge): it is the one in effect, because our rules are converted last. Keep it until the
+    # two convert the same.
+    _same, _override = duplicate_ids(conv_path)
+    if _same:
+        md += ["### ACTION: rule ids present in both SigmaHQ and hawk-sigma-rules, same logic (delete our copy)", ""] + [f"- {h}" for h in _same] + [""]
+    if _override:
+        md += ["### Our copy overrides the SigmaHQ rule (logic differs; keep ours until SigmaHQ merges the change)", ""] + [f"- {h}" for h in _override] + [""]
 
     # 3. portal weight edits -> ledger
     tw = run([sys.executable, "track_weights.py", "--write", "--reason", f"portal edit, recorded {day}"])
