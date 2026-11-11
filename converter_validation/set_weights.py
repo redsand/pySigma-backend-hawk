@@ -2,7 +2,7 @@
 
 Posts each score's own live row back to POST /scores/<score_id> with correlation_action changed
 and a dated "WEIGHT <date>: a -> b (reason)" note prepended to its comments (enabled, rules,
-dates kept), the same path disable_scores.py uses. Safe for held scores,
+dates kept), the same path manage_scores.py uses. Safe for held scores,
 whose logic a sync_scores.py push would replace. Every change is written to score_weights.json
 so later syncs keep it.
 
@@ -17,7 +17,7 @@ import time
 import requests
 import urllib3
 
-from disable_scores import BASE, api_key, row_to_form
+from manage_scores import BASE, api_key, row_to_form
 from track_weights import load_ledger, save_ledger
 
 urllib3.disable_warnings()

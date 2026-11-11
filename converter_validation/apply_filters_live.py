@@ -3,7 +3,7 @@
 sync_scores.py applies exclusions when it pushes converted SigmaHQ / hawk-sigma-rules logic. Scores
 from elsewhere (custom portal scores, the Sigma-Rules threat-report packs) are never re-pushed,
 so their exclusions are written once into the live logic here, through POST /scores/<score_id>
-(the same path disable_scores.py uses; enabled, weight and dates are kept).
+(the same path manage_scores.py uses; enabled, weight and dates are kept).
 
 Idempotent: an exclusion whose "hawk_filter:<tier>:<name>" leaves are already present is skipped.
 Each applied exclusion adds a dated FILTER note to the score's comments.
@@ -20,7 +20,7 @@ from pathlib import Path
 import requests
 import urllib3
 
-from disable_scores import BASE, api_key, row_to_form
+from manage_scores import BASE, api_key, row_to_form
 from score_filters import exclusion_node, fetch_group_tree, load_filters
 
 HERE = Path(__file__).resolve().parent

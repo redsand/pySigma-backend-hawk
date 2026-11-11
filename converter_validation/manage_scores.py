@@ -1,14 +1,14 @@
-"""Disable (or enable) production scores by numeric score_id.
+"""Enable or disable production scores by numeric score_id (disable is the default; --enable enables).
 
 The hawk_id upsert cannot change `enabled`; only POST /scores/<numeric id> can. This tool reads
 the live score list, finds the rows for the requested hawk_ids or score_ids, and posts the full
 row back with enabled flipped. Dry run by default.
 
 Usage:
-    python disable_scores.py --hawk-ids-file reports/batch_000_deprecated.txt            # dry run
-    python disable_scores.py --hawk-ids-file reports/batch_000_deprecated.txt --execute
-    python disable_scores.py --score-ids 123,456 --enable --execute
-    python disable_scores.py --non-public-enabled --make-public            # dry run
+    python manage_scores.py --hawk-ids-file reports/batch_000_deprecated.txt            # dry run
+    python manage_scores.py --hawk-ids-file reports/batch_000_deprecated.txt --execute
+    python manage_scores.py --score-ids 123,456 --enable --execute
+    python manage_scores.py --non-public-enabled --make-public            # dry run
 
 --make-public sets public=true and leaves enabled as-is. hawk-ece honors the flag
 only from 867eb1d3; before it every score was loaded as public, so non-public

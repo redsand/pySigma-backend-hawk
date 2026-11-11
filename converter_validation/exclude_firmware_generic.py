@@ -12,7 +12,7 @@ sl_hawk_firmware parser (H0000, NLP-labelled e.g. 'Possible Worm/Trojan Activity
 import copy, datetime, json, sys, uuid
 import requests, urllib3
 sys.path.insert(0, r"C:\Users\tshel\source\repos\pySigma-backend-hawk\converter_validation")
-from disable_scores import BASE, api_key, row_to_form
+from manage_scores import BASE, api_key, row_to_form
 import local_eval
 
 _leaf = local_eval.leaf

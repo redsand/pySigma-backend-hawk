@@ -9,12 +9,12 @@ Steps:
   6. backtest new + changed rules against explore (backtest_explore.py)
   7. per-score firing for the last 7 days (fired_explore.py) -> loud scores at weight >= 15
 
-Writes reports/weekly/<date>/ (id lists ready for sync_scores.py / disable_scores.py) and
+Writes reports/weekly/<date>/ (id lists ready for sync_scores.py / manage_scores.py) and
 reports/weekly/<date>/summary.md. Pushing, enabling and weight changes stay manual:
 
     python sync_scores.py --select reports/weekly/<date>/refresh.txt --execute --verify   # refreshes
     python sync_scores.py --select reports/weekly/<date>/new.txt --execute --verify       # new, disabled
-    python disable_scores.py --hawk-ids-file reports/weekly/<date>/deprecated_enabled.txt --execute
+    python manage_scores.py --hawk-ids-file reports/weekly/<date>/deprecated_enabled.txt --execute
     python set_weights.py --set <score_id>=<w> ... --reason "..." --execute
 
 Usage: python weekly_update.py [--hours 168] [--skip-fetch]

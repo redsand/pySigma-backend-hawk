@@ -35,7 +35,7 @@ while True:
         fh.write(''.join(h + '\n' for h in held))
     if go:
         p = subprocess.run([sys.executable, 'sync_scores.py', '--select', f'reports/refresh_group_{group:03d}_push.txt', '--batch-size', '300', '--execute', '--verify'], capture_output=True, text=True)
-        e = subprocess.run([sys.executable, 'disable_scores.py', '--hawk-ids-file', f'reports/refresh_group_{group:03d}_push.txt', '--enable', '--execute'], capture_output=True, text=True)
+        e = subprocess.run([sys.executable, 'manage_scores.py', '--hawk-ids-file', f'reports/refresh_group_{group:03d}_push.txt', '--enable', '--execute'], capture_output=True, text=True)
         ver = [l for l in p.stdout.splitlines() if l.startswith('verified')]
         en = [l for l in e.stdout.splitlines() if 'to enable' in l]
     else:

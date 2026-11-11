@@ -4,14 +4,14 @@ Marking a score LOUD:
   * disables it,
   * appends " (LOUD)" to its title, so the portal list shows why it is off,
   * prepends a dated note to its comments ("LOUD 2026-10-05: <reason>"), keeping existing notes.
-sync_scores.py keeps the (LOUD) title on refresh, and disable_scores.py --enable refuses LOUD
+sync_scores.py keeps the (LOUD) title on refresh, and manage_scores.py --enable refuses LOUD
 scores unless --allow-loud, so a bulk enable cannot switch one back on by accident.
 
     python mark_loud.py --score-ids 1307,2214 --reason "157/h on its own, 7d" [--execute]
     python mark_loud.py --score-ids 1307 --clear --reason "tuned: filter on agent" [--execute]
 
 --clear removes the title marker and adds a dated note; the score stays disabled (enable it
-deliberately with disable_scores.py --enable --allow-loud).
+deliberately with manage_scores.py --enable --allow-loud).
 """
 import argparse
 import datetime
@@ -20,7 +20,7 @@ import time
 import requests
 import urllib3
 
-from disable_scores import BASE, api_key, row_to_form
+from manage_scores import BASE, api_key, row_to_form
 
 urllib3.disable_warnings()
 MARK = " (LOUD)"

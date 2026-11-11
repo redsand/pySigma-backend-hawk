@@ -162,7 +162,7 @@ def main() -> int:
             r = run([sys.executable, "sync_scores.py", "--select", out / "refresh.txt", "--batch-size", str(max(100, len(refresh))), "--execute", "--verify"], timeout=7200)
             md.append("- refresh: " + r.strip().splitlines()[-2])
         if dep:
-            r = run([sys.executable, "disable_scores.py", "--hawk-ids-file", out / "deprecated_enabled.txt", "--execute"], timeout=7200)
+            r = run([sys.executable, "manage_scores.py", "--hawk-ids-file", out / "deprecated_enabled.txt", "--execute"], timeout=7200)
             md.append("- deprecated disabled: " + r.strip().splitlines()[-1])
         if not (new or refresh or dep):
             md.append("- nothing to push: production matches the repos")
