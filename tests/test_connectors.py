@@ -228,6 +228,46 @@ def test_azure_target_type_matches_graph_spelling_in_joined_list() -> None:
     assert not _hawk_match(leaf, "ServicePrincipalGroup")
 
 
+def test_azure_whole_target_resources_also_searches_modified_property_values() -> None:
+    # Users Added to Global or Device Admin Roles (11c767ae) and User Added to an Administrator's
+    # Azure AD Role (ebbeb024) search the whole targetResources array for the role. On a Core
+    # Directory "Add member to role" event the collector has no target display name; the role is
+    # only in the modified-property values (live event, 2026-11-10).
+    rule = """
+title: T
+id: cccccccc-2222-3333-4444-555555555555
+status: test
+level: high
+logsource:
+    product: azure
+    service: auditlogs
+detection:
+    selection:
+        OperationName: 'Add member to role'
+        TargetResources|contains: '62e90394-69f5-4237-9190-012177145e10'
+    condition: selection
+"""
+    out = hawkBackend(processing_pipeline=hawk_pipeline()).convert(SigmaCollection.from_yaml(rule))
+    leaves = _leaves(out[0]["rules"])
+    role = [l for l in leaves if "62e90394" in str(l["args"]["str"]["value"])]
+    assert {l["key"] for l in role} == {"targetResourceName", "modifiedPropertyNewValue", "modifiedPropertyOldValue"}
+
+    def find_or(node):
+        if isinstance(node, list):
+            return [x for c in node for x in find_or(c)]
+        kids = node.get("children") or []
+        keys = {k.get("key") for k in kids}
+        here = [node] if {"targetResourceName", "modifiedPropertyNewValue"} <= keys else []
+        return here + [x for c in kids for x in find_or(c)]
+
+    groups = find_or(out[0]["rules"])
+    assert groups and all(str(g["key"]).lower() == "or" for g in groups)
+    new_value = next(l for l in role if l["key"] == "modifiedPropertyNewValue")
+    assert _hawk_match(new_value, '"c6ccebe0-b393-490e-b8c1-1844dc947664","Global Administrator",'
+                                  '"62e90394-69f5-4237-9190-012177145e10","TenantAdmins"')
+    assert not _hawk_match(new_value, '"88d8e3e3-8f55-4a1e-953a-9b9898b8876b","Directory Readers"')
+
+
 def test_m365_threat_management_uses_alert_title_and_drops_eventsource() -> None:
     rule = """
 title: T

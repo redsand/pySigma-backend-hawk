@@ -93,6 +93,7 @@ _CROSSWALK = {
 # (product, service) -> {sigma field: HAWK column}. Checked from live product_source samples on
 # 2026-09-29 (converter_validation/live/m365_samples.json) plus the collector contract in
 # reports/prompt_m365_collector.md for columns being added.
+TARGET_RESOURCES_COLUMNS = ["targetResourceName", "modifiedPropertyNewValue", "modifiedPropertyOldValue"]
 SERVICE_CROSSWALK = {
     ("azure", "signinlogs"): {
         "ResultType": "errorCode",
@@ -135,7 +136,12 @@ SERVICE_CROSSWALK = {
         "targetResources.userPrincipalName": "target_username",
         "TargetResources.type": "targetResourceType", "targetResources.type": "targetResourceType",
         "TargetResources.displayName": "targetResourceName",
-        "TargetResources": "targetResourceName", "properties.targetResources": "targetResourceName",
+        # A rule that searches the whole targetResources array wants whatever Graph put in it.
+        # The collector splits it: display names of the targets, and the modified properties'
+        # new/old values. Core Directory "Add member to role" has NO target display name; the
+        # role (Role.DisplayName, Role.TemplateId) is only in the modified-property values, so
+        # mapping to targetResourceName alone made the admin-role rules unable to match.
+        "TargetResources": TARGET_RESOURCES_COLUMNS, "properties.targetResources": TARGET_RESOURCES_COLUMNS,
         "TargetResources.modifiedProperties": "modifiedPropertyName",
         "TargetResources.ModifiedProperties.DisplayName": "modifiedPropertyName",
         "TargetResources.modifiedProperties.displayName": "modifiedPropertyName",
@@ -177,6 +183,9 @@ def service_field(product: str, service: str):
         out = cross.get(name) or lower.get(name.lower())
         if out is None:
             out = connector_field(product)(name)
+        if isinstance(out, list):       # one Sigma field -> OR over several columns
+            windows_unified.EMITTED.update(out)
+            return list(out)
         windows_unified.EMITTED.add(out)
         return out
 
