@@ -23,6 +23,12 @@ POSITIVES = {
     # an unsigned DLL that Code Integrity blocked is the injection this rule exists for
     "2f8102f8-3284-4a04-8fd2-948bb729bbf5": {"rule_name": "CodeIntegrity_inj.dll", "filename": r"C:\Users\bob\AppData\Local\Temp\inj.dll",
                                              "scan_context": "code_integrity", "signature_status": "Unavailable"},
+    # Global Administrator Role Permanently Assigned: the PIM event of 2026-11-10 that raised no case
+    "49eac29e-585e-4e63-b3ac-7a39d65adf93": {
+        "vendor_name": "Microsoft", "product_name": "Azure", "product_source": "directoryAudits", "category": "RoleManagement",
+        "activityDisplayName": "Add member to role in PIM completed (permanent)", "loggedByService": "PIM",
+        "targetResourceName": "Global Administrator,Contoso,Jane Doe Admin",
+        "modifiedPropertyNewValue": '"62e90394-69f5-4237-9190-012177145e10","BuiltInRole","62e90394-69f5-4237-9190-012177145e10"'},
 }
 NEGATIVES = [  # benign shapes seen 2026-10-05 must not match
     {"rule_name": "SIGNATURE_BASE_Reflectiveloader", "filename": r"C:\Program Files\SentinelOne\Sentinel Agent 26.1.2.177\InProcessClient64.dll", "scan_context": "fim_change"},
@@ -32,6 +38,11 @@ NEGATIVES = [  # benign shapes seen 2026-10-05 must not match
     # a validly signed AMSI provider failing a signing-level check: thousands of rows a week from one laptop
     {"rule_name": "CodeIntegrity_SentinelAmsi64.dll", "filename": r"C:\Program Files\SentinelOne\Sentinel Agent\SentinelAmsi64.dll",
      "scan_context": "code_integrity", "signature_status": "Valid"},
+    # a routine just-in-time PIM activation of Global Administrator is not a permanent assignment
+    {"rule_name": "pim_activation_global_admin", "vendor_name": "Microsoft", "product_name": "Azure", "product_source": "directoryAudits",
+     "category": "RoleManagement", "activityDisplayName": "Add member to role completed (PIM activation)", "loggedByService": "PIM",
+     "targetResourceName": "Global Administrator,Contoso,Jane Doe",
+     "modifiedPropertyNewValue": '"62e90394-69f5-4237-9190-012177145e10","BuiltInRole","62e90394-69f5-4237-9190-012177145e10"'},
 ]
 
 
