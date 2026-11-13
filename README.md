@@ -1,6 +1,6 @@
 ![Tests](https://github.com/redsand/pySigma-backend-hawk/actions/workflows/test.yml/badge.svg)
 ![Coverage Badge](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/redsand/GitHub Gist identifier containing coverage badge JSON expected by shields.io./raw/redsand-pySigma-backend-hawk.json)
-![Status](https://img.shields.io/badge/Status-pre--release-orange)
+![Status](https://img.shields.io/badge/Status-release-green)
 
 # pySigma hawk Backend
 

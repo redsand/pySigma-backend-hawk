@@ -5,6 +5,9 @@ description = "pySigma HAWK.io Backend"
 authors = ["Tim Shelton <tshelton@hawkdefense.com>"]
 license = "MIT"
 repository = "https://github.com/redsand/pySigma-backend-hawk"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+]
 packages = [
     { include = "sigma" }
 ]
