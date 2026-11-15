@@ -19,7 +19,8 @@ _MAPS_PATH = Path(__file__).resolve().parents[2] / "backends" / "hawk" / "config
 _MAPS: dict = json.loads(_MAPS_PATH.read_text(encoding="utf-8"))
 
 # Sigma logsource product -> json_key_to_column table
-_PRODUCT_TABLE = {"aws": "aws", "okta": "okta", "azure": "m365", "m365": "m365", "threatlocker": "threatlocker"}
+_PRODUCT_TABLE = {"aws": "aws", "okta": "okta", "azure": "m365", "m365": "m365", "threatlocker": "threatlocker",
+                  "workday": "workday"}
 CONNECTOR_PRODUCTS = tuple(_PRODUCT_TABLE)
 
 # Sigma's Azure/M365 field names (Log Analytics / legacy o365 schema) -> the keys the HAWK M365
@@ -39,6 +40,13 @@ _CROSSWALK = {
         "applicationName": "app", "ApplicationName": "app",
         "username": "correlation_username", "Username": "correlation_username",
         "hostname": "ip_src_host", "Hostname": "ip_src_host",
+    },
+    # Workday sign-ons (Identity_Management Get_Workday_Account_Signons / Get_Unidentified_Signons) via
+    # hawk_workday.py: native keys kept, with these HAWK columns filled beside them. The outcome is in
+    # alert_name ("Workday.com Authentication Success" / "... Failure").
+    "workday": {
+        "User_Name": "correlation_username",
+        "Signon_IP_Address": "ip_src",
     },
     "azure": {
         # directoryAudits (Graph)

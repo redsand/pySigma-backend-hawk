@@ -336,6 +336,29 @@ detection:
     assert not keys & {"actionType", "policyName", "fullPath", "processPath", "username", "hostname"}
 
 
+def test_workday_signon_fields_map_to_hawk_columns() -> None:
+    # Brute-force rules group on the account and the source address; both must land on indexed columns.
+    rule = """
+title: T
+id: 66666666-3333-3333-4444-555555555555
+status: test
+level: high
+logsource:
+    product: workday
+detection:
+    selection:
+        alert_name: 'Workday.com Authentication Failure'
+        User_Name: 'jdoe'
+        Signon_IP_Address: '203.0.113.7'
+    condition: selection
+"""
+    out = hawkBackend(processing_pipeline=hawk_pipeline()).convert(SigmaCollection.from_yaml(rule))
+    leaves = {l["key"]: l["args"]["str"]["value"] for l in _leaves(out[0]["rules"])}
+    assert leaves["vendor_name"] == "Workday"
+    assert {"alert_name", "correlation_username", "ip_src"} <= set(leaves)
+    assert not set(leaves) & {"User_Name", "Signon_IP_Address"}
+
+
 def test_windows_provider_name_matches_hawkagentd_product_name() -> None:
     rule = """
 title: T
