@@ -49,6 +49,12 @@ logsources:
     conditions:
       vendor_name: ThreatLocker
       product_name: ThreatLocker
+  # Workday sign-on and activity audit via the HAWK collector (hawk_workday.py).
+  workday-any:
+    match:
+      product: workday
+    conditions:
+      vendor_name: Workday
   # HAWK vTTAC agent YARA scanner (2026-10-05): one event per rule match, vendor_id 1001;
   # columns rule_name, scan_context (fim_change / process_create / code_integrity), file_path, hash.
   # AWS WAF request logs as normalized by HAWK (action ALLOW/BLOCK, http_path, http_query, rule_id).
