@@ -167,6 +167,24 @@ SERVICE_CROSSWALK = {
         "ConsentContext.IsAdminConsent": "modifiedPropertyPairs",
         "additionalDetails.additionalInfo": "additionalDetails", "AdditionalDetails": "additionalDetails",
     },
+    # Azure Activity Log (control plane) from hawk_m365_azure_activity.py (hawk-ece 5.6.6-19):
+    # product_source azureActivity. Azure nests several fields as {value, localizedValue}; the
+    # collector writes the plain value beside them under these names. Until 2026-11-17 no
+    # collector existed and rules for this source were refused.
+    ("azure", "activitylogs"): {
+        "operationName": "azureOperationName", "OperationName": "azureOperationName",
+        "OperationNameValue": "azureOperationName", "properties.message": "azureOperationName",
+        "category": "azureCategory", "Category": "azureCategory", "CategoryValue": "azureCategory",
+        "status": "azureStatus", "Status": "azureStatus", "ActivityStatusValue": "azureStatus",
+        "ActivityStatus": "azureStatus",
+        "subStatus": "azureSubStatus", "ActivitySubstatusValue": "azureSubStatus",
+        "ResourceProviderValue": "azureResourceProvider", "resourceProvider": "azureResourceProvider",
+        "Caller": "azureCaller", "caller": "azureCaller",
+        "CallerIpAddress": "azureCallerIpAddress", "callerIpAddress": "azureCallerIpAddress",
+        "resourceId": "resourceId", "ResourceId": "resourceId", "_ResourceId": "resourceId",
+        "Level": "azureLevel", "level": "azureLevel",
+        "SubscriptionId": "subscriptionId", "ResourceGroup": "resourceGroupName",
+    },
     ("m365", "threat_management"): {
         "eventName": "title", "EventName": "title",
         "Payload": "description",

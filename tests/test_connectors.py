@@ -318,8 +318,9 @@ detection:
     assert "event_source" not in keys and "ResultStatus" not in keys and "eventSource" not in keys
 
 
-def test_azure_activitylogs_are_refused() -> None:
-    import pytest
+def test_azure_activitylogs_use_the_activity_collector_columns() -> None:
+    # Refused until 2026-11-17 (no collector). hawk_m365_azure_activity.py now sends the Azure
+    # Activity Log as product_source azureActivity with the operation name in azureOperationName.
     rule = """
 title: T
 id: cccccccc-2222-3333-4444-555555555555
@@ -333,8 +334,10 @@ detection:
         operationName: 'MICROSOFT.KEYVAULT/VAULTS/DELETE'
     condition: selection
 """
-    with pytest.raises(Exception):
-        hawkBackend(processing_pipeline=hawk_pipeline()).convert(SigmaCollection.from_yaml(rule))
+    out = hawkBackend(processing_pipeline=hawk_pipeline()).convert(SigmaCollection.from_yaml(rule))
+    leaves = {l["key"]: l for l in _leaves(out[0]["rules"])}
+    assert leaves["product_source"]["args"]["str"]["value"] == "azureActivity"
+    assert "azureOperationName" in leaves and "operationName" not in leaves and "activityDisplayName" not in leaves
 
 
 def test_threatlocker_native_fields_map_to_hawk_columns() -> None:

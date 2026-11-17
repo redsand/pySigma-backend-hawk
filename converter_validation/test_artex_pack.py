@@ -23,7 +23,9 @@ FIELDS = {
     "cs-uri-stem": "http_path", "cs-uri-query": "http_query", "cs-user-agent": "http_user_agent",
     "sc-status": "http_status_code", "cs-method": "http_method", "c-ip": "ip_src", "cs-host": "http_host",
     "Image": "image", "CommandLine": "command", "ParentImage": "parent_image", "TargetFilename": "filename",
-    "query": "dns_query", "OperationName": "activityDisplayName", "operationName": "activityDisplayName",
+    "query": "dns_query",
+    # directory audit, or the Azure Activity Log: whichever column the rule's source uses
+    "OperationName": ("activityDisplayName", "azureOperationName"), "operationName": ("activityDisplayName", "azureOperationName"),
     "InitiatedBy": "correlation_username", "AppId": "appId", "IPAddress": "ipAddress", "ResultType": "errorCode",
     # AWS CloudTrail and Kubernetes audit, as the collector field maps name them
     "eventSource": "product_name", "sourceIPAddress": "ip_src",
@@ -87,6 +89,8 @@ def main() -> int:
             event = {}
             for key, value in case["event"].items():
                 column = FIELDS.get(key, key)
+                if isinstance(column, tuple):
+                    column = next((c for c in column if c in used), column[0])
                 # the collectors flatten vendor keys; the converter names them the same way
                 snake = re.sub(r"(?<=[a-z0-9])([A-Z])", r"_\1", key).replace(".", "_").lower()
                 for candidate in (column, snake, key.replace(".", "_"), key):
