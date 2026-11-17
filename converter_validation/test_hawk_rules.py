@@ -32,6 +32,22 @@ POSITIVES = {
     # an ARTEX marker rule from hawkagentd yara/hawk-detections.yar matching in a web root
     "39efb766-9b19-4d3a-8c2f-e91b99a37f57": {"rule_name": "HAWK_ARTEX_Agent_Probe_Markers",
                                              "filename": r"C:\inetpub\wwwroot\uploads\a.txt", "scan_context": "fim_change"},
+    # Vendor-app takeover (Storm-0940 / ConnectWise), on the columns our directory-audit and sign-in
+    # collectors write: the acting application is in initiatedByApp, not in a raw InitiatedBy object.
+    "c68889d2-c04f-4fa2-8dff-926e028fb335": {
+        "vendor_name": "Microsoft", "product_name": "Azure", "product_source": "directoryAudits", "category": "RoleManagement",
+        "activityDisplayName": "Add member to role", "initiatedByApp": "ConnectWise Cloud Backup for M365",
+        "modifiedPropertyNewValue": '"62e9","Global Administrator","62e90394","TenantAdmins"'},
+    "7c422d8e-7998-43ca-8e8c-055fd3f863db": {
+        "vendor_name": "Microsoft", "product_name": "Azure", "product_source": "directoryAudits", "category": "ApplicationManagement",
+        "activityDisplayName": "Add service principal credentials", "initiatedByApp": "ConnectWise Cloud Backup for M365"},
+    "e8642068-a5de-4f49-b3ec-f7a3b8f29aec": {
+        "vendor_name": "Microsoft", "product_name": "Azure", "product_source": "directoryAudits", "category": "ApplicationManagement",
+        "activityDisplayName": "Consent to application", "initiatedByApp": "ConnectWise Cloud Backup for M365"},
+    "01ed1f59-0b46-4908-aa70-ab21b48ed442": {
+        "vendor_name": "Microsoft", "product_name": "Azure", "product_source": "signInAudits", "signInCollection": "servicePrincipal",
+        "appDisplayName": "ConnectWise Cloud Backup for M365", "appId": "fd4d4a28-7032-4e1a-8fd2-6a58a1decc07",
+        "ipAddress": "144.172.64.128", "errorCode": "0"},
 }
 NEGATIVES = [  # benign shapes seen 2026-10-05 must not match
     {"rule_name": "SIGNATURE_BASE_Reflectiveloader", "filename": r"C:\Program Files\SentinelOne\Sentinel Agent 26.1.2.177\InProcessClient64.dll", "scan_context": "fim_change"},
@@ -46,6 +62,12 @@ NEGATIVES = [  # benign shapes seen 2026-10-05 must not match
      "category": "RoleManagement", "activityDisplayName": "Add member to role completed (PIM activation)", "loggedByService": "PIM",
      "targetResourceName": "Global Administrator,Contoso,Jane Doe",
      "modifiedPropertyNewValue": '"62e90394-69f5-4237-9190-012177145e10","BuiltInRole","62e90394-69f5-4237-9190-012177145e10"'},
+    # live shape, 7 days to 2026-11-17: PIM adds role members as an application
+    {"rule_name": "pim_role_add_as_app", "vendor_name": "Microsoft", "product_name": "Azure", "product_source": "directoryAudits",
+     "category": "RoleManagement", "activityDisplayName": "Add member to role", "initiatedByApp": "MS-PIM",
+     "modifiedPropertyNewValue": '"5584d80c","Intune Administrator","3a2c62db","IntuneServiceAdmin"'},
+    # (An ordinary service-principal sign-in is not listed here: every sign-in counter rule counts
+    # it by design, and this check drops the counters, so it would fail them all.)
 ]
 
 
