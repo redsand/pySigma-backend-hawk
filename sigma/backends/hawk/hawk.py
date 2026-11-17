@@ -34,6 +34,8 @@ from sigma.types import (
     SpecialChars,
 )
 
+from sigma.pipelines.hawk import windows_unified
+
 from .field_mapper import FieldMapper
 from .logsource_enrichment import LogSourceEnricher
 
@@ -219,6 +221,7 @@ class hawkBackend(TextQueryBackend):
         if not hasattr(self, "last_processing_pipeline") or self.last_processing_pipeline is None:
             self.init_processing_pipeline(output_format)
 
+        windows_unified.EMITTED = set()
         self._apply_pipeline_once(rule)
         results = []
         for index, cond in enumerate(rule.detection.parsed_condition):
@@ -235,10 +238,20 @@ class hawkBackend(TextQueryBackend):
         return results if rule._output else []
 
     def _apply_pipeline_once(self, rule: SigmaRule) -> None:
-        """Referenced rules are converted again inside a correlation; never re-map their fields."""
+        """Referenced rules are converted again inside a correlation; never re-map their fields.
+
+        The column names the pipeline emits for a rule are final for that rule only. They used to
+        pile up for the whole process, so a native key one source keeps (AWS `eventName`) stopped
+        the generic mapping of the same Sigma field in every later rule (GCP `eventName` ->
+        event_name), depending on the order files were converted in. Each rule's names are now
+        kept with the rule; a conversion sees its own and those of the rules it references."""
         if rule.custom_attributes.get("_hawk_pipeline_applied"):
+            windows_unified.EMITTED |= rule.custom_attributes["_hawk_emitted"]
             return
+        seen, windows_unified.EMITTED = windows_unified.EMITTED, set()
         self.last_processing_pipeline.apply(rule)
+        rule.custom_attributes["_hawk_emitted"] = set(windows_unified.EMITTED)
+        windows_unified.EMITTED |= seen
         rule.custom_attributes["_hawk_pipeline_applied"] = True
 
     def _base_children(self, rule: SigmaRule) -> list[dict]:
@@ -303,6 +316,9 @@ class hawkBackend(TextQueryBackend):
         """Override to bypass TextQueryBackend.finish_query which stringifies dict output."""
         if not hasattr(self, "last_processing_pipeline") or self.last_processing_pipeline is None:
             self.init_processing_pipeline(output_format)
+        windows_unified.EMITTED = set()
+        for ref in self._referenced_rules(rule):
+            self._apply_pipeline_once(ref)
         self.last_processing_pipeline.apply(rule)
 
         m = method or self.default_correlation_method

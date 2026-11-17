@@ -35,8 +35,36 @@ detection:
     out = hawkBackend(processing_pipeline=hawk_pipeline()).convert(SigmaCollection.from_yaml(rule))
     keys = {l["key"] for l in _leaves(out[0]["rules"])}
     # table-mapped per json_key_to_column.cloudtrail
-    assert {"product_name", "alert_name", "aws_auth_type", "error_code"} <= keys
+    assert {"product_name", "aws_auth_type", "error_code"} <= keys
     assert "user_identity.type" not in keys and "userIdentity.type" not in keys
+    # The call name stays on the native key: alert_name holds it with the words split
+    # ("Create Access Key"), so an exact name compared there never matched.
+    assert "eventName" in keys and "alert_name" not in keys
+
+
+def test_aws_native_call_name_does_not_change_other_sources() -> None:
+    # The AWS collector keeps `eventName`; other sources get the generic event_name. Emitted names
+    # were once remembered for the whole process, so converting an AWS rule first flipped every
+    # later rule's eventName (seen on 7 SigmaHQ GCP rules, 2026-11-17).
+    rule = """
+title: T
+id: %s
+status: test
+level: high
+logsource:
+    product: %s
+    service: %s
+detection:
+    selection:
+        eventName: 'CreateAccessKey'
+    condition: selection
+"""
+    backend = hawkBackend(processing_pipeline=hawk_pipeline())
+    aws = backend.convert(SigmaCollection.from_yaml(rule % ("44444444-2222-3333-4444-666666666666", "aws", "cloudtrail")))
+    gcp = backend.convert(SigmaCollection.from_yaml(rule % ("44444444-2222-3333-4444-777777777777", "gcp", "gcp.audit")))
+    assert "eventName" in {l["key"] for l in _leaves(aws[0]["rules"])}
+    gcp_keys = {l["key"] for l in _leaves(gcp[0]["rules"])}
+    assert "event_name" in gcp_keys and "eventName" not in gcp_keys
 
 
 def test_okta_fields_follow_json_key_to_column() -> None:
