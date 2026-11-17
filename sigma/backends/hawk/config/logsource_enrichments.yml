@@ -781,6 +781,7 @@ logsources:
     conditions:
       vendor_name: Microsoft
       product_name: Azure
+      product_source: azureActivity
   azure-activity:
     match:
       product: azure

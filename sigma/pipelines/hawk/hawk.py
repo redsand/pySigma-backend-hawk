@@ -88,15 +88,6 @@ def hawk_pipeline() -> ProcessingPipeline:
             ),
         ] +
         [
-            # Azure Resource Manager activity logs are not collected by any HAWK connector; a rule
-            # for them would only ever match unrelated Azure (M365) events through its gate.
-            ProcessingItem(
-                identifier="hawk_refuse_azure_activitylogs",
-                transformation=RuleFailureTransformation("Azure activity logs (ARM) are not collected by HAWK; no source to match."),
-                rule_conditions=[LogsourceCondition(product="azure", service="activitylogs")],
-            ),
-        ] +
-        [
             ProcessingItem(
                 identifier=f"hawk_drop_{product}_{service}",
                 transformation=DropDetectionItemTransformation(),
