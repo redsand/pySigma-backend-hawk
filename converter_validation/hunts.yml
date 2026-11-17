@@ -78,6 +78,47 @@ hunts:
     all:
       - http_user_agent: ['python-requests', 'python-urllib', 'Go-http-client', 'curl/', 'Wget/', 'WindowsPowerShell', 'libwww-perl']
 
+  # ARTEX and forks (LLM-driven attack framework; MalwareMustDie pack MMD-072-2026). The Sigma rules
+  # under the content repo's rules/artex import disabled; these hunts show the same behaviour daily
+  # whether or not a score is enabled, and what the correlations hawk-ece cannot join would have seen.
+  - name: Web server process starting a shell or download tool (webshell foothold)
+    mitre: T1505.003
+    report_by: parent_image
+    all:
+      - product_name: ['Sysmon', 'Security-Auditing']
+      - vendor_id: ['1', '4688']
+      - parent_image: ['\w3wp.exe', '\php-cgi.exe', '\php.exe', '\httpd.exe', '\nginx.exe', '\tomcat', '\java.exe']
+      - image: ['\cmd.exe', '\powershell.exe', '\pwsh.exe', '\certutil.exe', '\bitsadmin.exe', '\whoami.exe', '\net.exe', '\wscript.exe', '\cscript.exe', '\mshta.exe', '\rundll32.exe']
+
+  - name: Remote execution tooling used from a server (agentic internal pivot)
+    mitre: T1021.006
+    report_by: parent_image
+    all:
+      - product_name: ['Sysmon', 'Security-Auditing']
+      - vendor_id: ['1', '4688']
+      - command: ['Test-WSMan', 'Invoke-Command -ComputerName', 'Enter-PSSession', 'evil-winrm', 'winrs -r:', 'psexec', 'wmic /node:']
+
+  - name: ARTEX framework or fork user agent
+    mitre: T1595.002
+    all:
+      - http_user_agent: ['ArtExVerify', 'artex-enrich', 'ArtEx/1.0', 'scopeweaver', 'spa-api-recon']
+
+  - name: ARTEX webshell, probe or verification marker in a web request
+    mitre: T1505.003
+    all:
+      - http_query: ['x9f3c2b7e', 'ARTEX_WRITE_PROBE', 'ARTX_PERSIST_OK', 'artex_control_marker_zz9q', 'ARTEX-PROBE-0001', 'ARTX123']
+
+  - name: ARTEX tooling file or marker on an endpoint
+    mitre: T1105
+    all:
+      - product_name: ['Sysmon', 'Security-Auditing']
+      - command: ['ARTX123', '\Windows\Temp\artx', '\ProgramData\artx', 'ARTEX_LLM_', 'tomicdd/artex', 'congdonglinux/artex']
+
+  - name: Lookup of an ARTEX operator domain
+    mitre: T1071.001
+    all:
+      - dns_query: ['artex.lol', 'artex.tokena2b.top', 'artex.ok7777.eu.cc', 'artex.noog2infra.site', 'xcai.pro']
+
   - name: Linux download-and-execute or reverse shell
     mitre: T1059.004
     # Phrase match drops punctuation, so "| sh" would match any command with the word sh: keep to

@@ -29,6 +29,9 @@ POSITIVES = {
         "activityDisplayName": "Add member to role in PIM completed (permanent)", "loggedByService": "PIM",
         "targetResourceName": "Global Administrator,Contoso,Jane Doe Admin",
         "modifiedPropertyNewValue": '"62e90394-69f5-4237-9190-012177145e10","BuiltInRole","62e90394-69f5-4237-9190-012177145e10"'},
+    # an ARTEX marker rule from hawkagentd yara/hawk-detections.yar matching in a web root
+    "39efb766-9b19-4d3a-8c2f-e91b99a37f57": {"rule_name": "HAWK_ARTEX_Agent_Probe_Markers",
+                                             "filename": r"C:\inetpub\wwwroot\uploads\a.txt", "scan_context": "fim_change"},
 }
 NEGATIVES = [  # benign shapes seen 2026-10-05 must not match
     {"rule_name": "SIGNATURE_BASE_Reflectiveloader", "filename": r"C:\Program Files\SentinelOne\Sentinel Agent 26.1.2.177\InProcessClient64.dll", "scan_context": "fim_change"},
