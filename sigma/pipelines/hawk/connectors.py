@@ -48,6 +48,14 @@ _CROSSWALK = {
         "User_Name": "correlation_username",
         "Signon_IP_Address": "ip_src",
     },
+    # AWS CloudTrail. The collector writes the call name twice: `eventName` verbatim ("AssumeRole") and
+    # alert_name with the words split ("Assume Role"). The field table names alert_name, so every rule
+    # for an exact call name compared "AssumeRole" with "Assume Role" and could not match (Explore,
+    # 72h to 2026-11-17: alert_name "AssumeRole" 0 events, "Assume Role" 151,946). Rules keep the
+    # native key.
+    "aws": {
+        "eventName": "eventName",
+    },
     "azure": {
         # directoryAudits (Graph)
         "ActivityDisplayName": "activityDisplayName",

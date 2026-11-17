@@ -26,7 +26,7 @@ FIELDS = {
     "query": "dns_query", "OperationName": "activityDisplayName", "operationName": "activityDisplayName",
     "InitiatedBy": "correlation_username", "AppId": "appId", "IPAddress": "ipAddress", "ResultType": "errorCode",
     # AWS CloudTrail and Kubernetes audit, as the collector field maps name them
-    "eventName": "alert_name", "eventSource": "product_name", "sourceIPAddress": "ip_src",
+    "eventSource": "product_name", "sourceIPAddress": "ip_src",
     "userIdentity.type": "aws_auth_type", "verb": "http_method", "objectRef.resource": "object_type",
 }
 GATES = ("vendor_name", "product_name", "product_source", "vendor_id")
