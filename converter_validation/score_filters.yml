@@ -454,3 +454,19 @@ filters:
         match:
           vendor_id: {equals: '12'}
         evidence: "6 of 15 events 7d 2026-10-26 (installers creating the Run key / deleting their old value)"
+
+  # AWS service-linked roles assume roles all day as the service itself (Config, Trusted Advisor,
+  # Security Hub). Any other role, including the customer's own, still alerts.
+  - score: 905d389b-b853-46d0-9d3d-dea0d3a3cd49      # AWS STS AssumeRole Misuse
+    exclusions:
+      - name: AWS service-linked roles (AWSServiceRoleFor*)
+        tier: generic
+        match: {correlation_username: {startswith: AWSServiceRoleFor}}
+        evidence: "347,000+ of 1,438,678 hits 72h 2026-11-19 (Config 320,001, Trusted Advisor 15,795, Security Hub 11,198)"
+
+  - score: 77bb8063-42ca-5d8f-8b64-5c1264380b16      # [ARTEX-T2] ARTEX/AntiFox AWS Bucket Discovery Sweep
+    exclusions:
+      - name: AWS service-linked roles (AWSServiceRoleFor*)
+        tier: generic
+        match: {correlation_username: {startswith: AWSServiceRoleFor}}
+        evidence: "293 of 1,649 hits 72h 2026-11-19 (AWS Config)"
