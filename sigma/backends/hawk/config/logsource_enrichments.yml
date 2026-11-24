@@ -91,6 +91,18 @@ logsources:
     conditions:
       product_name: Agent
       key: HAWKFW
+  # HAWK vTTAC agent power events (HAWKPower, hawk-ece-rules sl_hawk_power.hwk, HID10270-10279):
+  # threat_name is the line type (power_source, unexpected_shutdown, battery_low,
+  # power_source_flapping), threat_class the agent severity (NOTICE / INFO), threat_status the
+  # power state (battery / ac) or the shutdown cause (power_loss_or_hang, ...), object_type the
+  # platform role, value the previous state / down_since.
+  hawk-power:
+    match:
+      product: hawk
+      service: power
+    conditions:
+      product_name: Agent
+      key: HAWKPWR
   antivirus:
     match:
       category: antivirus
