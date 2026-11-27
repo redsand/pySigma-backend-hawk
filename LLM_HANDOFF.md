@@ -37,21 +37,10 @@ If a translated field is not in these sources:
 2. decide map/define/add-new-column
 3. use `payload` fallback only as temporary bridge
 
-## Reports / Results Location
+## Scope boundary
 
-Validation scripts and reports are outside this repo in:
-
-- `..\converter_validation\`
-- `..\converter_validation\reports\`
-
-Key recent artifacts:
-
-- `..\converter_validation\reports\migration_state_report_v3_partial_live.json`
-- `..\converter_validation\reports\migration_state_details_v3_partial_live.csv`
-- `..\converter_validation\reports\unknown_columns_v3_partial_live.json`
-- `..\converter_validation\reports\subset_50_boolean_compare_v2.json`
-- `..\converter_validation\reports\subset_50_mismatch_diagnostics.json`
-- `..\converter_validation\TAXONOMY_PARITY_FINDINGS.md`
+This repo only converts Sigma rules to HAWK analytics JSON. Validation, sync, tuning and hunt
+tooling and its reports are HAWK-internal and are not part of this repo.
 
 ## Current Known State (Important)
 
@@ -64,7 +53,7 @@ Key recent artifacts:
 
 ## Latest Snapshot (2026-02-20)
 
-From `..\converter_validation\reports\`:
+From the internal validation reports:
 
 1. Conversion state (`sigma_rules_conversion_state_v3.json`):
    - `input_files`: 3110
@@ -107,9 +96,6 @@ Do not treat core parity alone as release readiness.
 
 ## How To Reproduce Quick Checks
 
-From `..\` (repo root `sigma`):
-
 ```powershell
-python -m pytest pySigma-backend-hawk\tests converter_validation\tests -q
-python converter_validation\compare_boolean_trees.py --old converter_validation\reports\subset_50_production.jsonl --new converter_validation\reports\subset_50_new.jsonl --report-json converter_validation\reports\subset_50_boolean_compare_v2.json --gap-csv converter_validation\reports\subset_50_boolean_gap_v2.csv --max-examples 50
+python -m pytest tests -q
 ```

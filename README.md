@@ -5,6 +5,9 @@
 # pySigma hawk Backend
 
 This is the hawk backend for pySigma. It provides the package `sigma.backends.hawk` with the `hawkBackend` class.
+
+Scope: this repository only converts Sigma rules to HAWK analytics JSON. Detection content,
+exclusions, weights and the sync/tuning tooling that use it are maintained privately.
 Further, it contains the following processing pipelines in `sigma.pipelines.hawk`:
 
 * pipeline1: purpose
